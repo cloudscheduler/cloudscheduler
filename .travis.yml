@@ -1,14 +1,28 @@
+sudo: fales
+
 language: java
 jdk:
-  - oraclejdk8
+- oraclejdk8
 
-install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+env:
+  global:
+  - 
+  - secure: MXvA6FkSjRU1AVwwuz1/UJIVRuKwDhpzcfFG8xoLfCXunPTaWl+C38rOFiSpvB0o2mYYK57lWV13ALmqGkRzLqTS5/UMcIdzYqJD338B527PDvm1dpObp75I5dW94PC9xcEfd5oCe4GmwrjKL/g7bN9CgucBtTIlPiYuiZN9ojpJFRJ0kAYS4cG6V5kFKMWkc6bW4p2GhJ8zMC+RnhzsOa+gZ8ZvVkxKOceXVSUGQpaDRznJ8icEOE6rz7chmyWWNk3qDDKy95NRmPZiajHQqWkEgopps+AVNyMkHyqdajUN4jDqDVwtk8xLiGAjEnOd0dyX1NC1N6IHhUmnYb4GFfsr9ltJXG8IqbZHCWgywicEPCdZg3iLDAE/LQnXf879oPra9/fXvdO99DuHiFJdooX8m12msjL7PL3ZrrH8Xno15LdpAQM8j/HWjmn+HevzQd5KbnKCixjosNCjdK4IBSp0hXNWxLXuDoEgqymvrlOFpDrlDNxbESRhWMNLOzcWFYvokgmxm4odyJIBduzszp3VEm5k+MZf7e1UhVEKkKvVaKtop8Tjzt4Lq/AMFvdvrwdWlXCniiWd/VjBa+F0ECRoxqjdTJgutWgwklbWXhXdWWQND6NNcfEMtcDxGN5TSKB+hoDM2ww4f8z/PeUAhB+/OEFEYgv3h/N+zIaF1kI=
+  - 
+  - secure: brgPJH98cFo8+0u4YAyIB7rqg/Dl7FVAj+IhqayV3Out/MyYIKURB05/piexv1j7JYBdSWj1MBdkm5XWvgVZ7PoKd9P+W08JnIjkyAzloP9882fOyn0/RYEaDnIDIrud/NH0XVhuvljdie2aKBjpFW0J4oK9JF8YRUjbMIDZ1HKTnQHzfKnU+BodO55XPj3nA7OW5QK3r9Nwphf89HTrpVtzhhJ8X4/ZAVxQssy/8RlfM1kt8xv+jSzn6Z+LFGbn25ABN6KzoJyjX0koSeh+bAqxQyi1xWlzd+m4pfCHlz+Jl67WaGfq8sk7MmUZ+uZFvQXbIsy8SDXAMd80XuaYHpRgJplpW5JOELnaAKITW101wRhm3T+vp7KX9mgIZsbHu4o2Odcnx60qJu4PLxq+WJKki0C7adf+evDPfHgi5I/Y+DQ+/yKdxnoD9US0ja8ANAKMNVYOZ6BikvXH4WfUbRcuNjpu7jfE5pZ4sQcjTibpygT1u9hsEcCsXX1UPDZ+FKww5sbfBWj/wS7PeF/4Zu1pDDbzAOpp5fAlnFDV97Kh1qxitYDaTkD4qjxRelJv8FXLA/P4jpGWyRQVdvl4lMbqkwp3kP5qE9HaPNlbcFIVAwd5+68HxjgP+y34bjXWg4RedNKlLqRgKPIC3fKv1HRMkioMb566OH20nlgf/MY=
+  - secure: LwXQaID9nBg4n/tmcaX8hk/3B/W2PliIaBO/AkGjChXHBaktuvH7HtRYP+hSTw3RCZZiGFjBPLrS1vqXpE08BgNciVKzisretQmb0lFBCSnygN9Gts5F1gLCBrmkLkFPxIhpf+VQX3bLZAvlHYA3ddEE29E/mScYt2z4JytUEiQb4CkEjsE1sBlsuoMVOBdv3CDEZVMqiTMtbFycRUzHouarUwEzpzMvEpGFqtBAFNrljV3iXpmU6k2eagAlwjmZDyljLSKdvhR4Ht4H0GNnEDOxUp71+hF7o3rAVr1wPAxJwTZ51aO2+5SLNH1yrBeLnEqxQf3TXq+7WYreCjqgkUU6HiBR2g5vmSZqd1/h0Q3Sk6D/+YwfdD6x7iENI83WAWdfee5uJjyCN8+9EVhwMgbKztubjN9MqKsY3P+Jou1ySjBeSOzg9E1iVr0lq4Eef4aM8RmvpBx3rIWT30Uty/s5DsojiaKGsnTDqwsHu7C3riBJiKyb6b1zvLGiJtpn8qbG070i/+LmmO6rP3zw7CPgK2QcIUrSd/cq6SgLxgaAnVFCZLlgl5mU0Fzh1ew4Qa0WhG8jE1AVP2p4NmduIrgGtIIrDb2SaO2C/FNCn4RTZmj1S594JSKhQ9NB9WOKeyvYt3bJNkLyuoAH9CblJixxoEjwj/8hd0Adw+5SLK8=
+  - secure: sNZaDpmKO8OTAVYbnkLkrIFs3pU6ls1wDy7GK3A+vah0iR28vQwvNE6EM8fU84nBA1K+WNS71PBt24tL43sbZHT4nqxOyQpEFTgsx1rjDU4eBLv5x778qk5y19mFH08xB1BsMkoRMuuvCBPz7Qh2TdBZSrg2FYJaQIb2H30VchV6fI7iYCBHuuZzk9/5YwfHFsEshzUqxRXV24/LahEQrsnCKz6Gg/JCx4rOUD106vR2+nLTk2c4GY64rjH/Jm7Eq+wLt5i2B2lwLD+lGjY68BrI4OTa0oWJxBALi1Jxh5UefiYNHmrx4BykZw3lVfTo+QIfcuJDbAikCszXBJqmpebGmuioiFvycWXDApXl6ZNWISr8UC+woqhiRN00puz0F0k+kez81WenOdMkdyi8SxeGP2W2x6Ty4VOoFZPz2LNA4+L/QDGqLWIXotjVfIP/CGUPtb2yPqBIfc57HftfbB2kJbGMm57ONanPibFi70ImzQt4yxvhS7GdBtw7LTOA16XqM4k3rAPRznG7fVP/ap5iqIFpR/bJveAUyP+MiSUDno3wNzChWs5vODTrPb4GblNbY3GXacvrujQTT0ogq8SolYHWMwM3zU4dkru6ZNPy0RL54XhOE1UjMk+JARr/CCEzdfcHkcG/+kPQ61FSYo64JieVGPYlWNW42Y3f5gE=
 
+install: mvn install -P !build-extras -DskipTests=true -Dmaven.javadoc.skip=true -B
+  -V
 script:
-  - mvn test -P !build-extras -B
-  - find $HOME/.m2 -name "_remote.repositories" | xargs rm
-  - find $HOME/.m2 -name "resolver-status.properties" | xargs rm -f
-
+- mvn test -P !build-extras -B
+- find $HOME/.m2 -name "_remote.repositories" | xargs rm
+- find $HOME/.m2 -name "resolver-status.properties" | xargs rm -f
 cache:
   directories:
-    - $HOME/.m2
+  - "$HOME/.m2"
+
+after_success:
+  - ./cd/before-deploy.sh
+  - ./cd/deploy.sh

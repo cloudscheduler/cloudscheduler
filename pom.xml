@@ -54,6 +54,7 @@
         <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
         <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
         <maven-staging-plugin.version>1.6.8</maven-staging-plugin.version>
+        <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
         <maven-site-plugin.version>3.7.1</maven-site-plugin.version>
         <maven-project-info-reports-plugin.version>3.0.0</maven-project-info-reports-plugin.version>
@@ -203,6 +204,11 @@
             <name>Sonatype Nexus Snapshot</name>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <name>Sonatype Nexus Release</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
         <site>
             <id>${project.artifactId}-site</id>
             <url>${project.baseUri}</url>
@@ -438,11 +444,6 @@
     <profiles>
         <profile>
             <id>sign</id>
-            <properties>
-                <gpg.executable>gpg</gpg.executable>
-                <gpg.keyname>${env.GPG_KEY_NAME}</gpg.keyname>
-                <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
-            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -477,9 +478,6 @@
                     <name>!skipExtras</name>
                 </property>
             </activation>
-            <properties>
-                <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
-            </properties>
             <build>
                 <plugins>
                     <plugin>
