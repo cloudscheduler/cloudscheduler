@@ -40,7 +40,7 @@
         <profile>
             <id>ossrh</id>
             <activation>
-                <activateByDefault>true</activeByDefault>
+                <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
                 <gpg.executable>gpg</gpg.executable>
