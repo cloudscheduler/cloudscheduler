@@ -499,7 +499,7 @@ public class SchedulerMasterTest extends AbstractTest {
     }
   }
 
-  @Test(timeOut = 20000L)
+  @Test(timeOut = 30000L)
   public void test1000WorkerNodesWith1000JobDefs() throws Throwable {
     int jobDefNumber = 1000;
     int nodeNumber = 1000;
