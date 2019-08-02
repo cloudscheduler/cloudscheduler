@@ -2,10 +2,10 @@
 Cloud scheduler is a zookeeper based scheduler for cloud environment. It heavily
 rely on CompletableFuture introduced in JDK 8. But with minimum dependencies.
 ## Design goal
-* Minimum Dependencies
-Simple Cloud Scheduler been split into multiple projects in order to minimize
+* Minimum Dependencies: 
+Cloud Scheduler been split into multiple projects in order to minimize
 third party dependencies.
-    * cloudscheduler-api:  Defined APIs, do not depend on any third party library.
+    * cloudscheduler-api:  Define APIs and data models, do not depend on any third party library.
     * cloudscheduler-codec-json: Jackson based entity codec implementations. Depends on
         * cloudscheduler-api
         * jackson-core
@@ -22,16 +22,16 @@ third party dependencies.
         * protostuff-collectionschema
     * cloudscheduler-core: Implementation of cloud scheduler. Depends on
         * cloudscheduler-api
-        * slf-api
+        * slf4j-api
         * zookeeper
-    * cloudscheduler-spring: Spring application context based job factory. Used to
+    * cloudscheduler-spring: Spring framework application context based job factory implementation. Used to
 integrate with spring framework. Depends on:
         * cloudscheduler-api
         * spring-context.jar
 * Thread module
-    * Use CompletableFuture feature, no blocking logic.
-    * Job run in user's own thread pool.
-    * Minimum threads in simple cloud scheduler.
+    * Asynchronized thread modeling, no blocking logic.
+    * Job runs in user's own thread pool.
+    * Minimum threads in cloud scheduler.
 
 ## How to use
 ### Dependencies
@@ -41,8 +41,7 @@ You will need at least:
 * One of codec implementation. Default is: `cloudscheduler-codec-json`
 
 If you want to use it in spring environment, you will also need
-* `cloudscheduler-spring`: JobFactory implementation that will get Job implementation
-spring beans
+* `cloudscheduler-spring`: JobFactory implementation that will retrieve Job instance from spring beans
 
 ### Standalone application
 #### Dependency definition:
