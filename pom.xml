@@ -84,7 +84,6 @@
         <module>cloudscheduler-codec-protobuf</module>
         <module>cloudscheduler-core</module>
         <module>cloudscheduler-spring</module>
-        <module>reports</module>
     </modules>
 
     <dependencies>
@@ -465,6 +464,12 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>with-report</id>
+            <modules>
+                <module>reports</module>
+            </modules>
         </profile>
         <profile>
             <id>build-extras</id>
