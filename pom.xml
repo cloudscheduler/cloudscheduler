@@ -59,7 +59,7 @@
         <maven-javadoc-plugin.version>3.1.1</maven-javadoc-plugin.version>
         <maven-site-plugin.version>3.8.2</maven-site-plugin.version>
         <maven-project-info-reports-plugin.version>3.0.0</maven-project-info-reports-plugin.version>
-        <checkstyle.version>8.23</checkstyle.version>
+        <checkstyle.version>8.29</checkstyle.version>
         <jacoco-maven-plugin.version>0.8.4</jacoco-maven-plugin.version>
         <maven-surefire-report-plugin.version>3.0.0-M3</maven-surefire-report-plugin.version>
         <maven-jxr-plugin.version>3.0.0</maven-jxr-plugin.version>
