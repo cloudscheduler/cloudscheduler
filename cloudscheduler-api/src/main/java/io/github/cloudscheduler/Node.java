@@ -25,7 +25,6 @@
 package io.github.cloudscheduler;
 
 import io.github.cloudscheduler.util.UuidUtils;
-
 import java.io.Serializable;
 import java.util.UUID;
 

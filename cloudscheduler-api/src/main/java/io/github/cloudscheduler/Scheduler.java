@@ -26,7 +26,6 @@ package io.github.cloudscheduler;
 
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

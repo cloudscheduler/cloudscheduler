@@ -25,9 +25,7 @@
 package io.github.cloudscheduler;
 
 import io.github.cloudscheduler.model.JobDefinition;
-
 import java.lang.reflect.Constructor;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

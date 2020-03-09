@@ -30,7 +30,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
-
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.codec.EntityCodec;
 import io.github.cloudscheduler.codec.EntityCodecProvider;
@@ -38,7 +37,6 @@ import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobRunStatus;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;

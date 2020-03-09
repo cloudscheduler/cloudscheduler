@@ -35,7 +35,6 @@ import io.github.cloudscheduler.model.JobInstanceState;
 import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.util.CompletableFutureUtils;
 import io.github.cloudscheduler.util.CronExpression;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -45,7 +44,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -26,7 +26,6 @@ package io.github.cloudscheduler.codec.jackson;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.UUID;
 
 /**

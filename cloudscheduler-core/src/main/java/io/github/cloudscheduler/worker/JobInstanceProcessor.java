@@ -37,12 +37,10 @@ import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.util.CompletableFutureUtils;
 import io.github.cloudscheduler.util.lock.DistributedLock;
 import io.github.cloudscheduler.util.lock.DistributedLockImpl;
-
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

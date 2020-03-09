@@ -30,7 +30,6 @@ import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

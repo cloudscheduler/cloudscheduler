@@ -37,7 +37,6 @@ import io.github.cloudscheduler.model.JobRunStatus;
 import io.github.cloudscheduler.util.CompletableFutureUtils;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
 import io.github.cloudscheduler.util.retry.RetryStrategy;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -53,7 +52,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;

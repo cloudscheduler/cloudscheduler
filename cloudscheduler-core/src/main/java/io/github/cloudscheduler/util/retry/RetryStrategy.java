@@ -25,7 +25,6 @@
 package io.github.cloudscheduler.util.retry;
 
 import io.github.cloudscheduler.util.CompletableFutureUtils;
-
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -37,7 +36,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

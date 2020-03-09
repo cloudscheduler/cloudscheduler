@@ -26,7 +26,6 @@ package io.github.cloudscheduler.model;
 
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.util.CronExpression;
-
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;

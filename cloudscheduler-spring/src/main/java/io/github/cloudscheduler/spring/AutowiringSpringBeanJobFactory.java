@@ -27,7 +27,6 @@ package io.github.cloudscheduler.spring;
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.model.JobDefinition;
-
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;

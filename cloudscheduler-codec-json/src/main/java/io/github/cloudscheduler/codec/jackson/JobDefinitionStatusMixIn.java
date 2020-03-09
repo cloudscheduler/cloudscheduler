@@ -25,10 +25,8 @@
 package io.github.cloudscheduler.codec.jackson;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobInstanceState;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;

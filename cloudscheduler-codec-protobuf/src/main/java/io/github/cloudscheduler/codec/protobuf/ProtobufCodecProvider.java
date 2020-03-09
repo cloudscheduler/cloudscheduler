@@ -30,7 +30,6 @@ import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
-
 import java.util.HashMap;
 import java.util.Map;
 

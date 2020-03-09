@@ -26,7 +26,6 @@ package io.github.cloudscheduler.util.lock;
 
 import io.github.cloudscheduler.util.ZooKeeperUtils;
 import io.github.cloudscheduler.util.retry.RetryStrategy;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;

@@ -35,7 +35,6 @@ import io.github.cloudscheduler.service.JobServiceImpl;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
 import io.github.cloudscheduler.util.lock.DistributedLock;
 import io.github.cloudscheduler.util.lock.DistributedLockImpl;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,7 +53,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
