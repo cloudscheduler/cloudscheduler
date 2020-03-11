@@ -42,7 +42,7 @@ public interface JobScheduleCalculator {
    *
    * @param jobDefinition JobDefinition object
    * @param status        JobDefinition status
-   * @return Next run time.
+   * @return Next run time. <tt>null</tt> if job should stop from been scheduled.
    */
   Instant calculateNextRunTime(JobDefinition jobDefinition, JobDefinitionStatus status);
 }

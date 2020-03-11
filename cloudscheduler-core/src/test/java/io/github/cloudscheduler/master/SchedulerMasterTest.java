@@ -28,6 +28,7 @@ import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.JobFactory;
+import io.github.cloudscheduler.JobScheduleCalculator;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.SimpleJobFactory;
 import io.github.cloudscheduler.TestJob;
@@ -248,6 +249,53 @@ public class SchedulerMasterTest extends AbstractTest {
       Instant t = Instant.now().plus(Duration.ofSeconds(1));
       JobDefinition job = JobDefinition.newBuilder(TestJob.class)
           .startAt(t).build();
+      jobService.saveJobDefinition(job);
+      JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
+      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+
+      List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
+      Assert.assertNotNull(is);
+      Assert.assertTrue(is.isEmpty());
+      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+
+      jobDefFinishedCounter.await();
+
+      jobDefinitionStatus = jobService.getJobStatusById(job.getId());
+      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+
+      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+
+      is = jobService.getJobInstancesByJobDef(job);
+      Assert.assertNotNull(is);
+      Assert.assertEquals(is.size(), 1);
+    } finally {
+      master.shutdown();
+    }
+  }
+
+  @Test(timeOut = 3000L)
+  public void testCustomizedScheduleTimeCalculator() throws Throwable {
+    CountDownLatch masterUpCounter = new CountDownLatch(1);
+    CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
+        jobFactory,
+        new AbstractCloudSchedulerObserver() {
+          @Override
+          public void masterNodeUp(UUID nodeId, Instant time) {
+            masterUpCounter.countDown();
+          }
+
+          @Override
+          public void jobDefinitionCompleted(UUID id, Instant time) {
+            jobDefFinishedCounter.countDown();
+          }
+        });
+    master.start();
+    masterUpCounter.await();
+    try {
+      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
+          .customizedCalculator(TestScheduleCalculator.class)
+          .build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
       Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
@@ -721,6 +769,19 @@ public class SchedulerMasterTest extends AbstractTest {
       Assert.assertEquals(jobIn.getRunStatus().size(), 5);
     } finally {
       master.shutdown();
+    }
+  }
+
+  public static class TestScheduleCalculator implements JobScheduleCalculator {
+    @Override
+    public Instant calculateNextRunTime(JobDefinition jobDefinition, JobDefinitionStatus status) {
+      if (status.getRunCount() == 0) {
+        logger.info("Calculate for first time, delay 1.5 seconds");
+        return Instant.now().plusMillis(1500L);
+      } else {
+        logger.info("Calculate for more than 1 times, should stop  now.");
+        return null;
+      }
     }
   }
 }

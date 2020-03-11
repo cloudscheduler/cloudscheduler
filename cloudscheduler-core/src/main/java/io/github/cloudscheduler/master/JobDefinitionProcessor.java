@@ -306,7 +306,11 @@ class JobDefinitionProcessor implements AsyncService {
             JobScheduleCalculator calculator = jobFactory
                 .createJobScheduleCalculator(jobDef.getCalculatorClass());
             Instant nextTime = calculator.calculateNextRunTime(jobDef, status);
-            return validateNextRuntime(jobDef, nextTime);
+            if (nextTime != null) {
+              return validateNextRuntime(jobDef, nextTime);
+            } else {
+              return completeJobDefinition(jobDef);
+            }
           } catch (Throwable e) {
             logger.debug(
                 "Got error when calculate next runtime from customized calcuator of class: {}",

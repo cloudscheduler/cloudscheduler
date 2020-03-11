@@ -34,12 +34,13 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.lang.NonNull;
 
 /**
- * Cloud scheduler spring framework job factory implementation. Use spring application context
- * to create job instance.
+ * Cloud scheduler spring framework job factory implementation. Use spring application context to
+ * create job instance.
  *
  * @author Wei Gao
  */
 public class AutowiringSpringBeanJobFactory implements JobFactory, ApplicationContextAware {
+
   private ApplicationContext appContext;
 
   @Override
@@ -55,7 +56,8 @@ public class AutowiringSpringBeanJobFactory implements JobFactory, ApplicationCo
   }
 
   @Override
-  public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
+  public void setApplicationContext(@NonNull ApplicationContext applicationContext)
+      throws BeansException {
     this.appContext = applicationContext;
   }
 }
