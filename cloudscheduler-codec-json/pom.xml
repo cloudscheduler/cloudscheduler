@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.github.cloudscheduler</groupId>
         <artifactId>cloudscheduler-parent</artifactId>
-        <version>1.0.2</version>
+        <version>1.0.3-SNAPSHOT</version>
     </parent>
     <artifactId>cloudscheduler-codec-json</artifactId>
     <packaging>jar</packaging>
