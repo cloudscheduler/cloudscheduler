@@ -74,7 +74,7 @@ public class SchedulerIntegrationTest extends AbstractTest {
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     worker.start();
     master.start();
 
@@ -150,9 +150,9 @@ public class SchedulerIntegrationTest extends AbstractTest {
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     worker.start();
     // Make sure master is leader
     master1.start();
@@ -242,9 +242,9 @@ public class SchedulerIntegrationTest extends AbstractTest {
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     worker.start();
     master1.start();
 
@@ -325,7 +325,7 @@ public class SchedulerIntegrationTest extends AbstractTest {
     SchedulerWorker worker1 = new SchedulerWorker(workerNode, zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerMaster master = new SchedulerMaster(workerNode, zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
 
     worker1.start();
     master.start();
@@ -430,7 +430,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
     };
     SchedulerWorker worker1 = new SchedulerWorker(workerNode1, zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, observer);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        threadPool, observer);
     SchedulerWorker worker2 = new SchedulerWorker(workerNode2, zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerWorker worker3 = new SchedulerWorker(workerNode3, zkUrl,
@@ -507,7 +508,7 @@ public class SchedulerIntegrationTest extends AbstractTest {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefCompleteCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID id, Instant time) {
@@ -561,7 +562,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
         jobDefCompletedCounter.countDown();
       }
     };
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, observer);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        threadPool, observer);
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
         Integer.MAX_VALUE, threadPool, jobFactory, observer);
     master.start();

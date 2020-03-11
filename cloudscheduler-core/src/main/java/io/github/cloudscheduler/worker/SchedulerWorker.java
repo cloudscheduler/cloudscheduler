@@ -76,17 +76,17 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
   /**
    * Constructor.
    *
-   * @param node       node
-   * @param zkUrl      zookeeper url
-   * @param zkTimeout  zookeeper timeout
-   * @param threadPool thread pool used to execute customer job
-   * @param jobFactory job factory
-   * @param observer   observer
+   * @param node               node
+   * @param zkUrl              zookeeper url
+   * @param zkTimeout          zookeeper timeout
+   * @param customerThreadPool thread pool used to execute customer job
+   * @param jobFactory         job factory
+   * @param observer           observer
    */
   public SchedulerWorker(Node node,
                          String zkUrl,
                          int zkTimeout,
-                         ExecutorService threadPool,
+                         ExecutorService customerThreadPool,
                          JobFactory jobFactory,
                          CloudSchedulerObserver observer) {
     Objects.requireNonNull(node, "Node is mandatory");
@@ -95,7 +95,7 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
     this.zkUrl = zkUrl;
     this.zkTimeout = zkTimeout;
     this.jobFactory = jobFactory;
-    this.customerThreadPool = threadPool;
+    this.customerThreadPool = customerThreadPool;
     running = new AtomicBoolean(false);
     jobInstanceChanged = new AtomicBoolean(true);
     scanning = new AtomicBoolean(false);

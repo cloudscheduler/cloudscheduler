@@ -60,6 +60,7 @@ class JobDefinitionProcessor implements AsyncService {
 
   private final JobDefinition jobDef;
   private final ExecutorService threadPool;
+  private final ExecutorService customerThreadPool;
   private final JobService jobService;
   private final JobFactory jobFactory;
   private final Consumer<EventType> statusListener;
@@ -75,6 +76,7 @@ class JobDefinitionProcessor implements AsyncService {
       ExecutorService threadPool,
       JobService jobService,
       JobFactory jobFactory,
+      ExecutorService customerThreadPool,
       CloudSchedulerObserver observer) {
     this.jobDef = jobDef;
     if (jobDef.getCron() != null) {
@@ -85,6 +87,7 @@ class JobDefinitionProcessor implements AsyncService {
     this.threadPool = threadPool;
     this.jobService = jobService;
     this.jobFactory = jobFactory;
+    this.customerThreadPool = customerThreadPool;
     this.running = new AtomicBoolean(false);
     this.scheduled = new AtomicBoolean(false);
     this.observer = observer;
@@ -305,15 +308,23 @@ class JobDefinitionProcessor implements AsyncService {
           try {
             JobScheduleCalculator calculator = jobFactory
                 .createJobScheduleCalculator(jobDef.getCalculatorClass());
-            Instant nextTime = calculator.calculateNextRunTime(jobDef, status);
-            if (nextTime != null) {
-              return validateNextRuntime(jobDef, nextTime);
-            } else {
-              return completeJobDefinition(jobDef);
-            }
+            return CompletableFuture.supplyAsync(() ->
+                calculator.calculateNextRunTime(jobDef, status), customerThreadPool)
+                .exceptionally(exp -> {
+                  logger.debug("Got error when calculate next runtime from customized calculator"
+                          + " of class: {}", jobDef.getCalculatorClass(), exp);
+                  return null;
+                })
+                .thenComposeAsync(nextTime -> {
+                  if (nextTime != null) {
+                    return validateNextRuntime(jobDef, nextTime);
+                  } else {
+                    return completeJobDefinition(jobDef);
+                  }
+                }, threadPool);
           } catch (Throwable e) {
             logger.debug(
-                "Got error when calculate next runtime from customized calcuator of class: {}",
+                "Error when initial customized calculator of class: {}",
                 jobDef.getCalculatorClass(), e);
             return completeJobDefinition(jobDef);
           }

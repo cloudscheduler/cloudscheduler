@@ -36,9 +36,9 @@
         <!-- dependencies version -->
         <zookeeper.version>3.4.14</zookeeper.version>
         <slf4j.version>1.7.25</slf4j.version>
-        <jackson.version>2.10.0.pr1</jackson.version>
+        <jackson.version>2.10.0</jackson.version>
         <protostuff.version>1.6.0</protostuff.version>
-        <spring.version>5.1.3.RELEASE</spring.version>
+        <spring.version>4.3.22.RELEASE</spring.version>
 
         <!-- test dependencies version -->
         <testng.version>6.14.3</testng.version>

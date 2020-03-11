@@ -81,6 +81,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   private final CloudSchedulerObserver observer;
   private final JobFactory jobFactory;
   private ExecutorService threadPool;
+  private final ExecutorService customerThreadPool;
   private ScheduledExecutorService scheduledThreadPool;
   private JobService jobService;
   private DistributedLock masterLock;
@@ -100,15 +101,18 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                          String zkUrl,
                          int zkTimeout,
                          JobFactory jobFactory,
+                         ExecutorService customerThreadPool,
                          CloudSchedulerObserver observer) {
     Objects.requireNonNull(node, "Node is mandatory");
     Objects.requireNonNull(zkUrl, "ZooKeeper url is mandatory");
     Objects.requireNonNull(jobFactory, "JobFactory is mandatory");
+    Objects.requireNonNull(customerThreadPool, "Customer provided thread pool is mandatory");
     Objects.requireNonNull(observer, "Observer is mandatory");
     this.node = node;
     this.zkUrl = zkUrl;
     this.zkTimeout = zkTimeout;
     this.jobFactory = jobFactory;
+    this.customerThreadPool = customerThreadPool;
     this.observer = observer;
     running = new AtomicBoolean(false);
     jobDefinitionChanged = new AtomicBoolean(true);
@@ -349,7 +353,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
           processors.computeIfAbsent(jobDef.getId(), (id -> {
             logger.trace("Find new JobDefinition, id: {}", id);
             JobDefinitionProcessor processor = new JobDefinitionProcessor(jobDef,
-                threadPool, jobService, jobFactory, observer);
+                threadPool, jobService, jobFactory, customerThreadPool, observer);
             processor.start();
             return processor;
           }));

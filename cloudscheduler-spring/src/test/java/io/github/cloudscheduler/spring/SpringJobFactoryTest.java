@@ -43,7 +43,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.PropertySource;
-import org.springframework.lang.Nullable;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -131,7 +130,6 @@ public class SpringJobFactoryTest {
       this.zkUrl = zkUrl;
     }
 
-    @Nullable
     @Override
     public Object getProperty(String s) {
       if ("myZooKeeperUrl".equals(s)) {

@@ -51,13 +51,10 @@ import org.slf4j.LoggerFactory;
 public class CloudSchedulerManager extends CompletableFuture<Void> implements AsyncService {
   private static final Logger logger = LoggerFactory.getLogger(CloudSchedulerManager.class);
 
-  private final Node node;
   private final SchedulerMaster master;
   private final SchedulerWorker worker;
   private final List<NodeRole> nodeRoles;
   private final AtomicBoolean running;
-  private final CloudSchedulerObserver observer;
-  private final JobFactory jobFactory;
 
   /**
    * Constructor.
@@ -76,12 +73,9 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
                                 CloudSchedulerObserver observer,
                                 List<NodeRole> roles) {
     nodeRoles = roles;
-    this.jobFactory = jobFactory;
-    this.observer = observer;
-    node = new Node(nodeId);
-    master = new SchedulerMaster(node, zkUrl, zkTimeout, this.jobFactory, observer);
-    worker = new SchedulerWorker(node, zkUrl, zkTimeout, customerThreadPool, this.jobFactory,
-        observer);
+    Node node = new Node(nodeId);
+    master = new SchedulerMaster(node, zkUrl, zkTimeout, jobFactory, customerThreadPool, observer);
+    worker = new SchedulerWorker(node, zkUrl, zkTimeout, customerThreadPool, jobFactory, observer);
     running = new AtomicBoolean(false);
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
   }

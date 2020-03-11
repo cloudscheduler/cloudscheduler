@@ -66,6 +66,7 @@ public class SchedulerMasterTest extends AbstractTest {
   public void testStartSchedulerMaster() throws Throwable {
     CountDownLatch jobInScheduledCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -90,6 +91,7 @@ public class SchedulerMasterTest extends AbstractTest {
     final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
         new CountDownLatch(1));
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -122,7 +124,7 @@ public class SchedulerMasterTest extends AbstractTest {
   public void testScheduleNowJob() throws Throwable {
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -167,7 +169,7 @@ public class SchedulerMasterTest extends AbstractTest {
         new CountDownLatch(1)
     );
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {
@@ -231,7 +233,7 @@ public class SchedulerMasterTest extends AbstractTest {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {
@@ -278,7 +280,7 @@ public class SchedulerMasterTest extends AbstractTest {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {
@@ -327,7 +329,7 @@ public class SchedulerMasterTest extends AbstractTest {
     final CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
 
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -417,7 +419,7 @@ public class SchedulerMasterTest extends AbstractTest {
     final AtomicInteger jobScheduledTimes = new AtomicInteger(0);
 
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -534,7 +536,7 @@ public class SchedulerMasterTest extends AbstractTest {
     int jobDefNumber = 1000;
     final CountDownLatch jobInScheduledCounter = new CountDownLatch(jobDefNumber);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
@@ -576,7 +578,7 @@ public class SchedulerMasterTest extends AbstractTest {
     CountDownLatch jobInstanceCounter = new CountDownLatch(jobDefNumber);
 
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {
@@ -638,9 +640,9 @@ public class SchedulerMasterTest extends AbstractTest {
       }
     };
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
     SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        observer);
+        threadPool, observer);
 
     master.start();
     master2.start();
@@ -696,7 +698,7 @@ public class SchedulerMasterTest extends AbstractTest {
     final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
         new CountDownLatch(1));
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory,
+        jobFactory, threadPool,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
