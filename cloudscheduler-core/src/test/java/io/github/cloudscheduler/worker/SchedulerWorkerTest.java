@@ -28,6 +28,7 @@ import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.AsyncService;
 import io.github.cloudscheduler.CloudSchedulerObserver;
+import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.SimpleJobFactory;
 import io.github.cloudscheduler.model.JobDefinition;
@@ -53,6 +54,7 @@ import org.testng.annotations.Test;
  */
 public class SchedulerWorkerTest extends AbstractTest {
   private static final Logger logger = LoggerFactory.getLogger(SchedulerWorkerTest.class);
+  private final JobFactory jobFactory = new SimpleJobFactory();
 
   private static final ConcurrentMap<String, CountDownLatch> counters = new ConcurrentHashMap<>();
   private static final String TEST_NAME = "name";
@@ -62,7 +64,7 @@ public class SchedulerWorkerTest extends AbstractTest {
     String name = "testBasicRunJobInstance";
     CountDownLatch counter = counters.computeIfAbsent(name, (key) -> new CountDownLatch(1));
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), new AbstractCloudSchedulerObserver() {
+        Integer.MAX_VALUE, threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
     });
     worker.start();
     try {
@@ -97,10 +99,10 @@ public class SchedulerWorkerTest extends AbstractTest {
       }
     };
     SchedulerWorker worker1 = new SchedulerWorker(node1, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
     Node node2 = new Node();
     SchedulerWorker worker2 = new SchedulerWorker(node2, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
 
     worker1.start();
     worker2.start();
@@ -149,7 +151,7 @@ public class SchedulerWorkerTest extends AbstractTest {
     for (int i = 0; i < numberOfWorkers; i++) {
       Node node = new Node();
       SchedulerWorker worker = new SchedulerWorker(node, zkUrl,
-          Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), new AbstractCloudSchedulerObserver() {
+          Integer.MAX_VALUE, threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
         @Override
         public void workerNodeUp(UUID nodeId, Instant time) {
           workerUpCounter.countDown();

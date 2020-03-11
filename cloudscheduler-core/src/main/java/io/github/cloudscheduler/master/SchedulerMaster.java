@@ -26,6 +26,8 @@ package io.github.cloudscheduler.master;
 
 import io.github.cloudscheduler.AsyncService;
 import io.github.cloudscheduler.CloudSchedulerObserver;
+import io.github.cloudscheduler.EventType;
+import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobInstance;
@@ -77,6 +79,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   private final String zkUrl;
   private final int zkTimeout;
   private final CloudSchedulerObserver observer;
+  private final JobFactory jobFactory;
   private ExecutorService threadPool;
   private ScheduledExecutorService scheduledThreadPool;
   private JobService jobService;
@@ -96,13 +99,16 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   public SchedulerMaster(Node node,
                          String zkUrl,
                          int zkTimeout,
+                         JobFactory jobFactory,
                          CloudSchedulerObserver observer) {
     Objects.requireNonNull(node, "Node is mandatory");
     Objects.requireNonNull(zkUrl, "ZooKeeper url is mandatory");
+    Objects.requireNonNull(jobFactory, "JobFactory is mandatory");
     Objects.requireNonNull(observer, "Observer is mandatory");
     this.node = node;
     this.zkUrl = zkUrl;
     this.zkTimeout = zkTimeout;
+    this.jobFactory = jobFactory;
     this.observer = observer;
     running = new AtomicBoolean(false);
     jobDefinitionChanged = new AtomicBoolean(true);
@@ -125,12 +131,8 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       workerNodeChanged.set(true);
       jobDefinitionChanged.set(true);
       zkConnector = ZooKeeperUtils.connectToZooKeeper(zkUrl, zkTimeout, eventType -> {
-        switch (eventType) {
-          case CONNECTION_LOST:
-            lostConnection();
-            break;
-          default:
-            break;
+        if (eventType == EventType.CONNECTION_LOST) {
+          lostConnection();
         }
       });
       zkConnector.thenAccept(this::initialMaster);
@@ -242,17 +244,13 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       logger.trace("In scan worker node loop.");
       scanWorkerNodeJob = scanWorkerNodeJob.thenCompose(v ->
           jobService.getCurrentWorkersAsync(eventType -> {
-            switch (eventType) {
-              case CHILD_CHANGED:
-                if (running.get() && workerNodeChanged.compareAndSet(false, true)) {
-                  logger.trace("Start scan worker node");
-                  scanWorkerNodes();
-                } else {
-                  logger.trace("Scan worker node in progress.");
-                }
-                break;
-              default:
-                break;
+            if (eventType == EventType.CHILD_CHANGED) {
+              if (running.get() && workerNodeChanged.compareAndSet(false, true)) {
+                logger.trace("Start scan worker node");
+                scanWorkerNodes();
+              } else {
+                logger.trace("Scan worker node in progress.");
+              }
             }
           }).thenComposeAsync(nodes -> {
             logger.trace("Scan worker nodes get {} records", nodes.size());
@@ -324,17 +322,13 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     while (jobDefinitionChanged.compareAndSet(true, false)) {
       scanJobDefJob = scanJobDefJob.thenCompose(v ->
           jobService.listAllJobDefinitionsAsync(eventType -> {
-            switch (eventType) {
-              case CHILD_CHANGED:
-                if (running.get() && jobDefinitionChanged.compareAndSet(false, true)) {
-                  logger.trace("Start scan job definition");
-                  threadPool.submit(this::scanJobDefinitions);
-                } else {
-                  logger.trace("Scan job definition in progress.");
-                }
-                break;
-              default:
-                break;
+            if (eventType == EventType.CHILD_CHANGED) {
+              if (running.get() && jobDefinitionChanged.compareAndSet(false, true)) {
+                logger.trace("Start scan job definition");
+                threadPool.submit(this::scanJobDefinitions);
+              } else {
+                logger.trace("Scan job definition in progress.");
+              }
             }
           }).thenAcceptAsync(this::processJobDefinitions, threadPool)
               .exceptionally(cause -> {
@@ -355,7 +349,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
           processors.computeIfAbsent(jobDef.getId(), (id -> {
             logger.trace("Find new JobDefinition, id: {}", id);
             JobDefinitionProcessor processor = new JobDefinitionProcessor(jobDef,
-                threadPool, jobService, observer);
+                threadPool, jobService, jobFactory, observer);
             processor.start();
             return processor;
           }));

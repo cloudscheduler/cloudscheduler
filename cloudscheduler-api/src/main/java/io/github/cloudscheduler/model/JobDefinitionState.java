@@ -40,11 +40,6 @@ public enum JobDefinitionState {
    * @return this job definition is completed
    */
   public boolean isActive() {
-    switch (this) {
-      case CREATED:
-        return true;
-      default:
-        return false;
-    }
+    return this == JobDefinitionState.CREATED;
   }
 }

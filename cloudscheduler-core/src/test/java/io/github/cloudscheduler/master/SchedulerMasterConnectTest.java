@@ -26,7 +26,9 @@ package io.github.cloudscheduler.master;
 
 import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
+import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
+import io.github.cloudscheduler.SimpleJobFactory;
 import io.github.cloudscheduler.TestJob;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
@@ -51,6 +53,7 @@ import org.testng.annotations.Test;
  */
 public class SchedulerMasterConnectTest {
   private final static Logger logger = LoggerFactory.getLogger(SchedulerMasterConnectTest.class);
+  private final JobFactory jobFactory = new SimpleJobFactory();
 
   @Test(timeOut = 10000L)
   public void testMasterKeepRetry() throws Throwable {
@@ -61,6 +64,7 @@ public class SchedulerMasterConnectTest {
     final CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
     TestingServer zkTestServer = new TestingServer(port);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
+        jobFactory,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {
@@ -112,6 +116,7 @@ public class SchedulerMasterConnectTest {
     final CountDownLatch masterDownCounter = new CountDownLatch(1);
     TestingServer zkTestServer = new TestingServer(port);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
+        jobFactory,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID nodeId, Instant time) {

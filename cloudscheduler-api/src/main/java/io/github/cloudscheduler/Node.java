@@ -82,7 +82,7 @@ public class Node implements Serializable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null || !(other instanceof Node)) {
+    if (!(other instanceof Node)) {
       return false;
     }
     final Node obj = (Node) other;

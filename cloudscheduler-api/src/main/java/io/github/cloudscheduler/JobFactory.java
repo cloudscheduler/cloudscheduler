@@ -32,5 +32,9 @@ import io.github.cloudscheduler.model.JobDefinition;
  * @author Wei Gao
  */
 public interface JobFactory {
+
   Job newJob(JobDefinition jobDefinition) throws Exception;
+
+  JobScheduleCalculator createJobScheduleCalculator(
+      Class<? extends JobScheduleCalculator> calculatorClass) throws Throwable;
 }

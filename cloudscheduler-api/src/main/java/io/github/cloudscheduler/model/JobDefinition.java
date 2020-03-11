@@ -25,6 +25,7 @@
 package io.github.cloudscheduler.model;
 
 import io.github.cloudscheduler.Job;
+import io.github.cloudscheduler.JobScheduleCalculator;
 import io.github.cloudscheduler.util.CronExpression;
 import java.io.Serializable;
 import java.time.Duration;
@@ -43,6 +44,7 @@ import java.util.UUID;
  * @author Wei Gao
  */
 public class JobDefinition implements Serializable {
+
   private static final Duration MINIMUM_RATE = Duration.ofSeconds(5);
   // Unique id of this job definition
   private final UUID id;
@@ -67,23 +69,25 @@ public class JobDefinition implements Serializable {
   // Job stop time.
   private final Instant endTime;
   // If this is a global job.
+  private final Class<? extends JobScheduleCalculator> calculatorClass;
   private final boolean global;
   // If allow duplicate instance (multiple job run concurrently)
   private final boolean allowDupInstances;
 
   JobDefinition(UUID id,
-                Class<? extends Job> jobClass,
-                String name,
-                Map<String, Object> data,
-                ScheduleMode mode,
-                String cron,
-                Instant startTime,
-                Instant endTime,
-                Duration rate,
-                Duration delay,
-                Integer repeat,
-                boolean global,
-                boolean allowDupInstances) {
+      Class<? extends Job> jobClass,
+      String name,
+      Map<String, Object> data,
+      ScheduleMode mode,
+      String cron,
+      Instant startTime,
+      Instant endTime,
+      Duration rate,
+      Duration delay,
+      Class<? extends JobScheduleCalculator> calculatorClass,
+      Integer repeat,
+      boolean global,
+      boolean allowDupInstances) {
     this.id = id;
     this.name = name;
     this.jobClass = jobClass;
@@ -94,6 +98,7 @@ public class JobDefinition implements Serializable {
     this.cron = cron;
     this.rate = rate;
     this.delay = delay;
+    this.calculatorClass = calculatorClass;
     this.repeat = repeat;
     this.global = global;
     this.allowDupInstances = allowDupInstances;
@@ -139,6 +144,10 @@ public class JobDefinition implements Serializable {
     return delay;
   }
 
+  public Class<? extends JobScheduleCalculator> getCalculatorClass() {
+    return calculatorClass;
+  }
+
   public Integer getRepeat() {
     return repeat;
   }
@@ -158,7 +167,7 @@ public class JobDefinition implements Serializable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null || !(other instanceof JobDefinition)) {
+    if (!(other instanceof JobDefinition)) {
       return false;
     }
     final JobDefinition obj = (JobDefinition) other;
@@ -184,6 +193,10 @@ public class JobDefinition implements Serializable {
           sb.append(",delay=\"").append(delay).append("\"");
         }
         break;
+      case CUSTOMIZED:
+        sb.append(",customized schedule calculator class=\"")
+            .append(calculatorClass.getSimpleName()).append("\"");
+        break;
       default:
         if (rate != null) {
           sb.append(",rate=\"").append(rate).append("\"");
@@ -208,10 +221,6 @@ public class JobDefinition implements Serializable {
     return sb.toString();
   }
 
-  public enum ScheduleMode {
-    START_NOW, START_AT, CRON
-  }
-
   /**
    * Create new JobDefinition Builder instance with gaven Job Class.
    *
@@ -227,6 +236,7 @@ public class JobDefinition implements Serializable {
    * Builder class for JobDefinition.
    */
   public static final class Builder {
+
     private final Class<? extends Job> jobClass;
     private final Map<String, Object> data;
     private String name;
@@ -236,11 +246,13 @@ public class JobDefinition implements Serializable {
     private Instant endTime;
     private Duration rate;
     private Duration delay;
+    private Class<? extends JobScheduleCalculator> calculatorClass;
     private Integer repeat;
     private boolean global;
     private boolean allowDupInstances;
 
     private Builder(Class<? extends Job> jobClass) {
+      Objects.requireNonNull(jobClass, "Start time is mandatory");
       this.jobClass = jobClass;
       data = new HashMap<>();
       mode = ScheduleMode.START_NOW;
@@ -280,6 +292,7 @@ public class JobDefinition implements Serializable {
       mode = ScheduleMode.START_NOW;
       cron = null;
       startTime = null;
+      calculatorClass = null;
       return this;
     }
 
@@ -290,12 +303,11 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder startAt(Instant startTime) {
-      if (startTime == null) {
-        throw new NullPointerException("Start time is mandatory");
-      }
+      Objects.requireNonNull(startTime, "Start time is mandatory");
       mode = ScheduleMode.START_AT;
       cron = null;
       this.startTime = startTime;
+      calculatorClass = null;
       return this;
     }
 
@@ -306,18 +318,17 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder initialDelay(Duration initialDelay) {
-      if (initialDelay == null) {
-        throw new NullPointerException("Initial delay is mandatory");
-      }
+      Objects.requireNonNull(initialDelay, "Initial delay is mandatory");
       if (initialDelay.isNegative() || initialDelay.isZero()
           || initialDelay.compareTo(MINIMUM_RATE) < 0) {
-        throw new IllegalArgumentException("Initial delay cannot be negative, zero or less than "
+        throw new IllegalArgumentException("Invalid initial delay value"
             + MINIMUM_RATE);
       }
       mode = ScheduleMode.START_AT;
       Instant startTime = Instant.now().plus(initialDelay);
       cron = null;
       this.startTime = startTime;
+      calculatorClass = null;
       return this;
     }
 
@@ -328,17 +339,16 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder fixedRate(Duration rate) {
-      if (ScheduleMode.CRON.equals(mode)) {
+      if (ScheduleMode.CRON.equals(mode) || ScheduleMode.CUSTOMIZED.equals(mode)) {
         throw new IllegalArgumentException("Rate cannot apply to cron job");
       }
-      if (rate == null) {
-        throw new NullPointerException("Rate is mandatory");
-      }
+      Objects.requireNonNull(rate, "Rate is mandatory");
       if (rate.isNegative() || rate.isZero() || rate.compareTo(MINIMUM_RATE) < 0) {
-        throw new IllegalArgumentException("Rate cannot be negative, zero or less than 1 minute");
+        throw new IllegalArgumentException("Invalid rate value");
       }
       this.rate = rate;
       this.delay = null;
+      calculatorClass = null;
       return this;
     }
 
@@ -349,17 +359,32 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder fixedDelay(Duration delay) {
-      if (ScheduleMode.CRON.equals(mode)) {
+      if (ScheduleMode.CRON.equals(mode) || ScheduleMode.CUSTOMIZED.equals(mode)) {
         throw new IllegalArgumentException("Delay cannot apply to cron job");
       }
-      if (delay == null) {
-        throw new NullPointerException("Delay is mandatory");
-      }
+      Objects.requireNonNull(delay, "Delay is mandatory");
       if (delay.isNegative() || delay.isZero() || delay.compareTo(MINIMUM_RATE) < 0) {
-        throw new IllegalArgumentException("Delay cannot be negative, zero or less than 1 minute");
+        throw new IllegalArgumentException("Invalid delay value");
       }
       this.delay = delay;
+      rate = null;
+      calculatorClass = null;
+      return this;
+    }
+
+    /**
+     * Customize job schedule.
+     *
+     * @param calculatorClass customized job schedule calculator class.
+     * @return JobDefinition Builder object
+     */
+    public Builder customizedCalculator(Class<? extends JobScheduleCalculator> calculatorClass) {
+      Objects.requireNonNull(calculatorClass, "Calculator class is mandatory");
+      this.mode = ScheduleMode.CUSTOMIZED;
+      this.startTime = null;
+      this.delay = null;
       this.rate = null;
+      this.calculatorClass = calculatorClass;
       return this;
     }
 
@@ -387,6 +412,7 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder endAt(Instant endTime) {
+      Objects.requireNonNull(endTime, "Endtime is mandatory");
       this.endTime = endTime;
       return this;
     }
@@ -418,9 +444,7 @@ public class JobDefinition implements Serializable {
      * @return JobDefinition Builder object
      */
     public Builder cron(String cron) {
-      if (cron == null) {
-        throw new NullPointerException("Cron is mandatory");
-      }
+      Objects.requireNonNull(cron, "Cron is mandatory");
       // Validate cron string
       CronExpression.createWithoutSeconds(cron);
       mode = ScheduleMode.CRON;
@@ -428,6 +452,7 @@ public class JobDefinition implements Serializable {
       startTime = null;
       rate = null;
       delay = null;
+      calculatorClass = null;
       return this;
     }
 
@@ -466,7 +491,7 @@ public class JobDefinition implements Serializable {
         name = id.toString();
       }
       return new JobDefinition(id, jobClass, name, data, mode, cron,
-          startTime, endTime, rate, delay, repeat, global, allowDupInstances);
+          startTime, endTime, rate, delay, calculatorClass, repeat, global, allowDupInstances);
     }
   }
 }

@@ -68,7 +68,7 @@ public class EntityCodecTest {
 
     byte[] data = codec.encode(entity);
     Assert.assertNotNull(data);
-    Assert.assertTrue(data.length == 16);
+    Assert.assertEquals(16, data.length);
 
     TestEntity entity1 = codec.decode(data);
     Assert.assertNotNull(entity1);

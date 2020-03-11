@@ -380,7 +380,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   @Override
   public CompletableFuture<Void> deleteJobInstanceAsync(UUID jobInstanceId) {
     Objects.requireNonNull(jobInstanceId, "JobDefinition ID is mandatory");
-    logger.debug("Deleting JobInstance by id: ", jobInstanceId);
+    logger.debug("Deleting JobInstance by id: {}", jobInstanceId);
     return retryOperation(() -> ZooKeeperUtils.deleteIfExists(zooKeeperSupplier.get(),
         getJobInstancePath(jobInstanceId)));
   }
@@ -979,13 +979,9 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   private void removeJobInstance(UUID id, CompletableFuture<JobInstance> future) {
     logger.trace("Remove JobInstance: {}", id);
     ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), getJobInstancePath(id), eventType -> {
-      switch (eventType) {
-        case CHILD_CHANGED:
-          logger.trace("Children changed, reprocess remove JobInstance");
-          removeJobInstance(id, future);
-          break;
-        default:
-          break;
+      if (eventType == EventType.CHILD_CHANGED) {
+        logger.trace("Children changed, reprocess remove JobInstance");
+        removeJobInstance(id, future);
       }
     }).thenAccept(children -> {
       if (children.isEmpty()) {

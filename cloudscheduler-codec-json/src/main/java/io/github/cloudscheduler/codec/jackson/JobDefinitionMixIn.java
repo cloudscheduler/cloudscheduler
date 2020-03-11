@@ -26,7 +26,8 @@ package io.github.cloudscheduler.codec.jackson;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.cloudscheduler.Job;
-import io.github.cloudscheduler.model.JobDefinition;
+import io.github.cloudscheduler.JobScheduleCalculator;
+import io.github.cloudscheduler.model.ScheduleMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -38,19 +39,21 @@ import java.util.UUID;
  * @author Wei Gao
  */
 abstract class JobDefinitionMixIn {
+
   JobDefinitionMixIn(@JsonProperty("id") UUID id,
-                     @JsonProperty("job_class") Class<? extends Job> jobClass,
-                     @JsonProperty("name") String name,
-                     @JsonProperty("ctx_data") Map<String, Object> data,
-                     @JsonProperty("mode") JobDefinition.ScheduleMode mode,
-                     @JsonProperty("cron") String cron,
-                     @JsonProperty("start_time") Instant startTime,
-                     @JsonProperty("end_time") Instant endTime,
-                     @JsonProperty("rate") Duration rate,
-                     @JsonProperty("delay") Duration delay,
-                     @JsonProperty("repeat") Integer repeat,
-                     @JsonProperty("global") boolean global,
-                     @JsonProperty("allow_dup_instances") boolean allowDupInstances) {
+      @JsonProperty("job_class") Class<? extends Job> jobClass,
+      @JsonProperty("name") String name,
+      @JsonProperty("ctx_data") Map<String, Object> data,
+      @JsonProperty("mode") ScheduleMode mode,
+      @JsonProperty("cron") String cron,
+      @JsonProperty("start_time") Instant startTime,
+      @JsonProperty("end_time") Instant endTime,
+      @JsonProperty("rate") Duration rate,
+      @JsonProperty("delay") Duration delay,
+      @JsonProperty("calculator_class") Class<? extends JobScheduleCalculator> calculatorClass,
+      @JsonProperty("repeat") Integer repeat,
+      @JsonProperty("global") boolean global,
+      @JsonProperty("allow_dup_instances") boolean allowDupInstances) {
   }
 
   @JsonProperty("id")
@@ -66,7 +69,7 @@ abstract class JobDefinitionMixIn {
   abstract Map<String, Object> getData();
 
   @JsonProperty("mode")
-  abstract JobDefinition.ScheduleMode getMode();
+  abstract ScheduleMode getMode();
 
   @JsonProperty("start_time")
   abstract Instant getStartTime();
@@ -82,6 +85,9 @@ abstract class JobDefinitionMixIn {
 
   @JsonProperty("delay")
   abstract Duration getDelay();
+
+  @JsonProperty("calculator_class")
+  abstract Class<? extends JobScheduleCalculator> getCalculatorClass();
 
   @JsonProperty("repeat")
   abstract Integer getRepeat();

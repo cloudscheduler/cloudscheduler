@@ -26,6 +26,7 @@ package io.github.cloudscheduler.worker;
 
 import io.github.cloudscheduler.AsyncService;
 import io.github.cloudscheduler.CloudSchedulerObserver;
+import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.model.JobInstance;
@@ -112,12 +113,8 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
       zkConnector = new CompletableFuture<>();
       scanJobInsJob = CompletableFuture.completedFuture(null);
       zkConnector = ZooKeeperUtils.connectToZooKeeper(zkUrl, zkTimeout, eventType -> {
-        switch (eventType) {
-          case CONNECTION_LOST:
-            lostConnection();
-            break;
-          default:
-            break;
+        if (eventType == EventType.CONNECTION_LOST) {
+          lostConnection();
         }
       });
       zkConnector.thenAccept(this::initialWorker);
@@ -217,17 +214,13 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
     while (jobInstanceChanged.compareAndSet(true, false)) {
       scanJobInsJob = scanJobInsJob.thenCompose(v ->
           jobService.listAllJobInstancesAsync(eventType -> {
-            switch (eventType) {
-              case CHILD_CHANGED:
-                if (running.get() && jobInstanceChanged.compareAndSet(false, true)) {
-                  logger.trace("Start scan job instance");
-                  scanJobInstances();
-                } else {
-                  logger.trace("Scan job instance in progress.");
-                }
-                break;
-              default:
-                break;
+            if (eventType == EventType.CHILD_CHANGED) {
+              if (running.get() && jobInstanceChanged.compareAndSet(false, true)) {
+                logger.trace("Start scan job instance");
+                scanJobInstances();
+              } else {
+                logger.trace("Scan job instance in progress.");
+              }
             }
           }).thenAcceptAsync(this::processJobInstances, threadPool));
     }

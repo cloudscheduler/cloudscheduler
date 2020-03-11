@@ -111,7 +111,7 @@ public class JobDefinitionStatus implements Serializable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null || !(other instanceof JobDefinitionStatus)) {
+    if (!(other instanceof JobDefinitionStatus)) {
       return false;
     }
     final JobDefinitionStatus obj = (JobDefinitionStatus) other;

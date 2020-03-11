@@ -27,6 +27,8 @@ package io.github.cloudscheduler.master;
 import io.github.cloudscheduler.AsyncService;
 import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.EventType;
+import io.github.cloudscheduler.JobFactory;
+import io.github.cloudscheduler.JobScheduleCalculator;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
@@ -53,11 +55,13 @@ import org.slf4j.LoggerFactory;
  * @author Wei Gao
  */
 class JobDefinitionProcessor implements AsyncService {
+
   private static final Logger logger = LoggerFactory.getLogger(JobDefinitionProcessor.class);
 
   private final JobDefinition jobDef;
   private final ExecutorService threadPool;
   private final JobService jobService;
+  private final JobFactory jobFactory;
   private final Consumer<EventType> statusListener;
   private final CronExpression cronExpression;
   private final AtomicBoolean running;
@@ -68,9 +72,10 @@ class JobDefinitionProcessor implements AsyncService {
   private JobDefinitionState jobDefState;
 
   JobDefinitionProcessor(JobDefinition jobDef,
-                         ExecutorService threadPool,
-                         JobService jobService,
-                         CloudSchedulerObserver observer) {
+      ExecutorService threadPool,
+      JobService jobService,
+      JobFactory jobFactory,
+      CloudSchedulerObserver observer) {
     this.jobDef = jobDef;
     if (jobDef.getCron() != null) {
       cronExpression = CronExpression.createWithoutSeconds(jobDef.getCron());
@@ -79,19 +84,16 @@ class JobDefinitionProcessor implements AsyncService {
     }
     this.threadPool = threadPool;
     this.jobService = jobService;
+    this.jobFactory = jobFactory;
     this.running = new AtomicBoolean(false);
     this.scheduled = new AtomicBoolean(false);
     this.observer = observer;
     listenerJob = CompletableFuture.completedFuture(null);
     statusListener = event -> {
       if (running.get()) {
-        switch (event) {
-          case ENTITY_UPDATED:
-            logger.trace("Status entity updated.");
-            onStatusChanged();
-            break;
-          default:
-            break;
+        if (event == EventType.ENTITY_UPDATED) {
+          logger.trace("Status entity updated.");
+          onStatusChanged();
         }
       }
     };
@@ -120,7 +122,8 @@ class JobDefinitionProcessor implements AsyncService {
             logger.debug("Scheduled future already done or already cancelled.");
           }
         }
-      }).whenComplete((v, cause) -> logger.info("Job definition processor down.", jobDef.getId()))
+      }).whenComplete((v, cause) -> logger.info("Job definition processor down {}.",
+          jobDef.getId()))
           .thenApply(v -> null);
     } else {
       return CompletableFuture.completedFuture(null);
@@ -246,6 +249,7 @@ class JobDefinitionProcessor implements AsyncService {
                         for (JobInstanceState s : status.getJobInstanceState().values()) {
                           if (!s.isComplete(jobDef.isGlobal())) {
                             completed = false;
+                            break;
                           }
                         }
                         if (started.get() || (completed && jobDef.getDelay() != null
@@ -266,11 +270,11 @@ class JobDefinitionProcessor implements AsyncService {
    *
    * @param jobDef JobDefinition
    * @param status JobDefinition status
-   * @return Next runtime, {@code null} if Job repeat or end time reached,
-   *     no previous job instance not complete and not allow duplicate job instance
+   * @return Next runtime, {@code null} if Job repeat or end time reached, no previous job instance
+   *         not complete and not allow duplicate job instance
    */
   private CompletableFuture<Instant> calculateNextRunTime(JobDefinition jobDef,
-                                                          JobDefinitionStatus status) {
+      JobDefinitionStatus status) {
     logger.trace("Calculating next runtime for JobDefinition: {}", jobDef.getId());
     if (status.getState().isActive()) {
       Instant now = Instant.now();
@@ -279,74 +283,89 @@ class JobDefinitionProcessor implements AsyncService {
         logger.trace("Job run count exceed repeat time, no next runtime");
         return completeJobDefinition(jobDef);
       }
-      if (jobDef.getMode().equals(JobDefinition.ScheduleMode.CRON)) {
-        logger.trace("Cron job");
-        CronExpression cron;
-        if (cronExpression != null) {
-          cron = cronExpression;
-        } else {
-          cron = CronExpression.createWithoutSeconds(jobDef.getCron());
-        }
-        try {
-          Instant nextTime = cron.nextTimeAfter(ZonedDateTime.now()).toInstant();
-          if (jobDef.getEndTime() != null && jobDef.getEndTime().isBefore(nextTime)) {
-            logger.trace("Next runtime {} after end time {}, no next runtime",
-                nextTime, jobDef.getEndTime());
+      switch (jobDef.getMode()) {
+        case CRON: {
+          logger.trace("Cron job");
+          CronExpression cron;
+          if (cronExpression != null) {
+            cron = cronExpression;
+          } else {
+            cron = CronExpression.createWithoutSeconds(jobDef.getCron());
+          }
+          try {
+            Instant nextTime = cron.nextTimeAfter(ZonedDateTime.now()).toInstant();
+            return validateNextRuntime(jobDef, nextTime);
+          } catch (IllegalArgumentException e) {
+            logger.debug("Got IllegalArgumentException, no next runtime", e);
             return completeJobDefinition(jobDef);
           }
-          logger.trace("Next runtime should be: {}", nextTime);
-          return CompletableFuture.completedFuture(nextTime);
-        } catch (IllegalArgumentException e) {
-          logger.debug("Got IllegalArgumentException, no next runtime", e);
-          return completeJobDefinition(jobDef);
         }
-      } else {
-        Duration interval;
-        Instant nextTime;
-        if (jobDef.getDelay() != null) {
-          interval = jobDef.getDelay();
-          nextTime = status.getLastCompleteTime();
-          if (nextTime == null) {
+        case CUSTOMIZED: {
+          logger.trace("Customized calculator");
+          try {
+            JobScheduleCalculator calculator = jobFactory
+                .createJobScheduleCalculator(jobDef.getCalculatorClass());
+            Instant nextTime = calculator.calculateNextRunTime(jobDef, status);
+            return validateNextRuntime(jobDef, nextTime);
+          } catch (Throwable e) {
+            logger.debug(
+                "Got error when calculate next runtime from customized calcuator of class: {}",
+                jobDef.getCalculatorClass(), e);
+            return completeJobDefinition(jobDef);
+          }
+        }
+        default: {
+          Duration interval;
+          Instant nextTime;
+          if (jobDef.getDelay() != null) {
+            interval = jobDef.getDelay();
+            nextTime = status.getLastCompleteTime();
+            if (nextTime == null) {
+              nextTime = jobDef.getStartTime();
+            }
+            if (nextTime == null) {
+              nextTime = now;
+            }
+          } else if (jobDef.getRate() != null) {
+            interval = jobDef.getRate();
+            nextTime = status.getLastScheduleTime();
+            if (nextTime == null) {
+              nextTime = jobDef.getStartTime();
+            }
+            if (nextTime == null) {
+              nextTime = now;
+            }
+          } else if (status.getLastScheduleTime() == null) {
             nextTime = jobDef.getStartTime();
+            if (nextTime == null) {
+              nextTime = now;
+            }
+            logger.trace("Next runtime should be: {}", nextTime);
+            return CompletableFuture.completedFuture(nextTime);
+          } else {
+            logger.trace("No delay, no rate, there will be no next runtime");
+            return completeJobDefinition(jobDef);
           }
-          if (nextTime == null) {
-            nextTime = now;
+          while (nextTime.isBefore(now)) {
+            nextTime = nextTime.plus(interval);
           }
-        } else if (jobDef.getRate() != null) {
-          interval = jobDef.getRate();
-          nextTime = status.getLastScheduleTime();
-          if (nextTime == null) {
-            nextTime = jobDef.getStartTime();
-          }
-          if (nextTime == null) {
-            nextTime = now;
-          }
-        } else if (status.getLastScheduleTime() == null) {
-          nextTime = jobDef.getStartTime();
-          if (nextTime == null) {
-            nextTime = now;
-          }
-          logger.trace("Next runtime should be: {}", nextTime);
-          return CompletableFuture.completedFuture(nextTime);
-        } else {
-          logger.trace("No delay, no rate, there will be no next runtime");
-          return completeJobDefinition(jobDef);
+          return validateNextRuntime(jobDef, nextTime);
         }
-        while (nextTime.isBefore(now)) {
-          nextTime = nextTime.plus(interval);
-        }
-        if (jobDef.getEndTime() != null && jobDef.getEndTime().isBefore(nextTime)) {
-          logger.trace("Next runtime {} after end time {}, no next runtime",
-              nextTime, jobDef.getEndTime());
-          return completeJobDefinition(jobDef);
-        }
-        logger.trace("Next runtime should be: {}", nextTime);
-        return CompletableFuture.completedFuture(nextTime);
       }
     } else {
       logger.trace("JobDefinition is not active, no next runtime");
       return CompletableFuture.completedFuture(null);
     }
+  }
+
+  private CompletableFuture<Instant> validateNextRuntime(JobDefinition jobDef, Instant nextTime) {
+    if (jobDef.getEndTime() != null && jobDef.getEndTime().isBefore(nextTime)) {
+      logger.trace("Next runtime {} after end time {}, no next runtime",
+          nextTime, jobDef.getEndTime());
+      return completeJobDefinition(jobDef);
+    }
+    logger.trace("Next runtime should be: {}", nextTime);
+    return CompletableFuture.completedFuture(nextTime);
   }
 
   private CompletableFuture<Instant> completeJobDefinition(JobDefinition jobDef) {

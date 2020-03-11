@@ -28,6 +28,7 @@ import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 
+import io.github.cloudscheduler.model.ScheduleMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -44,7 +45,7 @@ public class SchedulerImplTest extends AbstractTest {
 
     JobDefinition jobDef = scheduler.runNow(TestJob.class);
     Assert.assertNotNull(jobDef);
-    Assert.assertEquals(jobDef.getMode(), JobDefinition.ScheduleMode.START_NOW);
+    Assert.assertEquals(jobDef.getMode(), ScheduleMode.START_NOW);
     Assert.assertFalse(jobDef.isGlobal());
     Assert.assertNull(jobDef.getCron());
     Assert.assertNull(jobDef.getEndTime());
@@ -61,7 +62,7 @@ public class SchedulerImplTest extends AbstractTest {
     Instant time = Instant.now().plusSeconds(10);
     JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
     Assert.assertNotNull(jobDef);
-    Assert.assertEquals(jobDef.getMode(), JobDefinition.ScheduleMode.START_AT);
+    Assert.assertEquals(jobDef.getMode(), ScheduleMode.START_AT);
     Assert.assertFalse(jobDef.isGlobal());
     Assert.assertNull(jobDef.getCron());
     Assert.assertNull(jobDef.getEndTime());
@@ -91,7 +92,7 @@ public class SchedulerImplTest extends AbstractTest {
     Assert.assertNotNull(jobs);
     Assert.assertEquals(jobs.size(), 1);
     JobDefinition job = jobs.iterator().next();
-    Assert.assertEquals(job.getMode(), JobDefinition.ScheduleMode.START_AT);
+    Assert.assertEquals(job.getMode(), ScheduleMode.START_AT);
     Assert.assertFalse(job.isGlobal());
     Assert.assertNull(job.getCron());
     Assert.assertEquals(job.getEndTime(), etime);

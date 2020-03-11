@@ -22,36 +22,27 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package io.github.cloudscheduler.model;
+package io.github.cloudscheduler;
+
+import io.github.cloudscheduler.model.JobDefinition;
+import io.github.cloudscheduler.model.JobDefinitionStatus;
+import java.time.Instant;
 
 /**
- * JobInstance state enum.
+ * <p>A job schedule calculator. Been used to calculate next job start time.
+ * This will be used for customized schedule ScheduleMode</p>
  *
- * @author Wei Gao
+ * <p>The implementation of this interface should be stateless/singleton when use
+ * SimpleJobFactory.</p>
  */
-public enum JobInstanceState {
-  SCHEDULED,    // Scheduled, but not start yet.
-  RUNNING,      // Currently running
-  NODE_FAILED,  // Running node failed
-  COMPLETE,     // Complete successfully
-  FAILED;       // Complete but failed
+public interface JobScheduleCalculator {
 
   /**
-   * Check if JobInstance state is complete. For global job, NODE_FAILED consider
-   * as complete. Otherwise, NODE_FAILED consider as not complete.
+   * Calculate a job definition next runtime.
    *
-   * @param global global flag
-   * @return {@code true} if state is complete, {@code false} otherwise.
+   * @param jobDefinition JobDefinition object
+   * @param status        JobDefinition status
+   * @return Next run time.
    */
-  public boolean isComplete(boolean global) {
-    switch (this) {
-      case COMPLETE:
-      case FAILED:
-        return true;
-      case NODE_FAILED:
-        return global;
-      default:
-        return false;
-    }
-  }
+  Instant calculateNextRunTime(JobDefinition jobDefinition, JobDefinitionStatus status);
 }

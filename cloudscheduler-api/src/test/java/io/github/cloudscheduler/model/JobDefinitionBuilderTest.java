@@ -45,7 +45,7 @@ public class JobDefinitionBuilderTest {
         .build();
     Assert.assertNotNull(job.getId());
     Assert.assertEquals(job.getName(), job.getId().toString());
-    Assert.assertEquals(job.getMode(), JobDefinition.ScheduleMode.START_NOW);
+    Assert.assertEquals(job.getMode(), ScheduleMode.START_NOW);
     Assert.assertNull(job.getStartTime());
     Assert.assertNull(job.getCron());
     Assert.assertNull(job.getRate());
@@ -164,11 +164,11 @@ public class JobDefinitionBuilderTest {
         .build();
     Assert.assertNotEquals(job1, job2);
     job1 = new JobDefinition(id, TestJob.class, "jobName1", null,
-        JobDefinition.ScheduleMode.START_AT, null, null, null, null,
-        null, null, false, false);
+        ScheduleMode.START_AT, null, null, null, null,
+        null, null,null, false, false);
     job2 = new JobDefinition(id, TestJob.class, "jobName2", null,
-        JobDefinition.ScheduleMode.START_NOW, null, null, null, null,
-        null, null, true, true);
+        ScheduleMode.START_NOW, null, null, null, null,
+        null, null, null, true, true);
     Assert.assertEquals(job1, job2);
   }
 

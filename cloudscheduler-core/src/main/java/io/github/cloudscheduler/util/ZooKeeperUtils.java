@@ -36,6 +36,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.Transaction;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
@@ -254,14 +255,11 @@ public class ZooKeeperUtils {
               zooKeeper.delete(path, version, (rc1, path1, ctx1) -> {
                 logger.trace("Delete {} done.", dest);
                 KeeperException.Code code1 = KeeperException.Code.get(rc1);
-                switch (code1) {
-                  case OK:
-                    logger.trace("Node: {} deleted.", path1);
-                    future.complete(null);
-                    break;
-                  default:
-                    future.completeExceptionally(KeeperException.create(code1, path1));
-                    break;
+                if (code1 == Code.OK) {
+                  logger.trace("Node: {} deleted.", path1);
+                  future.complete(null);
+                } else {
+                  future.completeExceptionally(KeeperException.create(code1, path1));
                 }
               }, null);
               break;
@@ -375,12 +373,11 @@ public class ZooKeeperUtils {
             case NODEEXISTS:
               if (successIfExist) {
                 future.complete(path);
-                break;
               } else {
                 logger.debug("Result code is not OK, throw exception");
                 future.completeExceptionally(KeeperException.create(code, path));
-                break;
               }
+              break;
             default:
               logger.debug("Result code is not OK, throw exception");
               future.completeExceptionally(KeeperException.create(code, path));
@@ -558,13 +555,10 @@ public class ZooKeeperUtils {
         try {
           logger.trace("Set node data return code {} for path {}", rc, path);
           KeeperException.Code code = KeeperException.Code.get(rc);
-          switch (code) {
-            case OK:
-              future.complete(entity);
-              break;
-            default:
-              future.completeExceptionally(KeeperException.create(code, path));
-              break;
+          if (code == Code.OK) {
+            future.complete(entity);
+          } else {
+            future.completeExceptionally(KeeperException.create(code, path));
           }
         } catch (Throwable e) {
           future.completeExceptionally(e);
@@ -597,13 +591,10 @@ public class ZooKeeperUtils {
             try {
               logger.trace("Create node data return code {} for path {}", rc, path);
               KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  future.complete(entity);
-                  break;
-                default:
-                  future.completeExceptionally(KeeperException.create(code, path));
-                  break;
+              if (code == Code.OK) {
+                future.complete(entity);
+              } else {
+                future.completeExceptionally(KeeperException.create(code, path));
               }
             } catch (Throwable e) {
               future.completeExceptionally(e);
@@ -637,13 +628,10 @@ public class ZooKeeperUtils {
         try {
           logger.trace("Transaction return result: {}", rc);
           KeeperException.Code code = KeeperException.Code.get(rc);
-          switch (code) {
-            case OK:
-              future.complete(r);
-              break;
-            default:
-              future.completeExceptionally(KeeperException.create(code, path));
-              break;
+          if (code == Code.OK) {
+            future.complete(r);
+          } else {
+            future.completeExceptionally(KeeperException.create(code, path));
           }
         } catch (Throwable e) {
           future.completeExceptionally(e);

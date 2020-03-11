@@ -79,7 +79,7 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
     this.jobFactory = jobFactory;
     this.observer = observer;
     node = new Node(nodeId);
-    master = new SchedulerMaster(node, zkUrl, zkTimeout, observer);
+    master = new SchedulerMaster(node, zkUrl, zkTimeout, this.jobFactory, observer);
     worker = new SchedulerWorker(node, zkUrl, zkTimeout, customerThreadPool, this.jobFactory,
         observer);
     running = new AtomicBoolean(false);

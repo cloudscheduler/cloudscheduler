@@ -26,6 +26,7 @@ package io.github.cloudscheduler.worker;
 
 import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
+import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.SimpleJobFactory;
 import io.github.cloudscheduler.TestJob;
@@ -55,6 +56,7 @@ import org.testng.annotations.Test;
  */
 public class SchedulerWorkerConnectTest {
   private final static Logger logger = LoggerFactory.getLogger(SchedulerWorkerConnectTest.class);
+  private final JobFactory jobFactory = new SimpleJobFactory();
 
   @Test(timeOut = 10000L)
   public void testWorkerKeepRetry() throws Throwable {
@@ -68,7 +70,7 @@ public class SchedulerWorkerConnectTest {
     final CountDownLatch jobInCompleteCounter = new CountDownLatch(1);
 
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
-        threadPool, new SimpleJobFactory(), new AbstractCloudSchedulerObserver() {
+        threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
       @Override
       public void workerNodeUp(UUID nodeId, Instant time) {
         workerUpCounter.countDown();
@@ -127,7 +129,7 @@ public class SchedulerWorkerConnectTest {
     CountDownLatch workerUpCounter = new CountDownLatch(1);
     CountDownLatch workerDownCounter = new CountDownLatch(1);
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
-        threadPool, new SimpleJobFactory(), new AbstractCloudSchedulerObserver() {
+        threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
       @Override
       public void workerNodeUp(UUID nodeId, Instant time) {
         workerUpCounter.countDown();

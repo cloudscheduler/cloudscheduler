@@ -26,10 +26,12 @@ package io.github.cloudscheduler.spring;
 
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobFactory;
+import io.github.cloudscheduler.JobScheduleCalculator;
 import io.github.cloudscheduler.model.JobDefinition;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.NonNull;
 
 /**
  * Cloud scheduler spring framework job factory implementation. Use spring application context
@@ -47,7 +49,13 @@ public class AutowiringSpringBeanJobFactory implements JobFactory, ApplicationCo
   }
 
   @Override
-  public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+  public JobScheduleCalculator createJobScheduleCalculator(
+      Class<? extends JobScheduleCalculator> calculatorClass) {
+    return appContext.getBean(calculatorClass);
+  }
+
+  @Override
+  public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
     this.appContext = applicationContext;
   }
 }

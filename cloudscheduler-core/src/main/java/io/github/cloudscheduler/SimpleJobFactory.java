@@ -26,6 +26,10 @@ package io.github.cloudscheduler;
 
 import io.github.cloudscheduler.model.JobDefinition;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +39,14 @@ import org.slf4j.LoggerFactory;
  * @author Wei Gao
  */
 public class SimpleJobFactory implements JobFactory {
+
   private static final Logger logger = LoggerFactory.getLogger(SimpleJobFactory.class);
+
+  private final ConcurrentMap<Class<?>, JobScheduleCalculator> calcuatorMap;
+
+  public SimpleJobFactory() {
+    calcuatorMap = new ConcurrentHashMap<>();
+  }
 
   @Override
   public Job newJob(JobDefinition jobDefinition) throws Exception {
@@ -44,5 +55,26 @@ public class SimpleJobFactory implements JobFactory {
     Job job = constructor.newInstance();
     logger.trace("Created job object instance");
     return job;
+  }
+
+  @Override
+  public JobScheduleCalculator createJobScheduleCalculator(
+      Class<? extends JobScheduleCalculator> calculatorClass) throws Throwable {
+    try {
+      return calcuatorMap.computeIfAbsent(calculatorClass, key -> {
+        try {
+          Constructor<? extends JobScheduleCalculator> constructor = calculatorClass
+              .getConstructor();
+          return constructor.newInstance();
+        } catch (NoSuchMethodException
+            | IllegalAccessException
+            | InstantiationException
+            | InvocationTargetException exp) {
+          throw new CompletionException(exp);
+        }
+      });
+    } catch (CompletionException exp) {
+      throw exp.getCause();
+    }
   }
 }

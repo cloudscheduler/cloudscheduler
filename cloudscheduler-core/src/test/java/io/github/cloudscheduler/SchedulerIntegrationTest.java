@@ -47,6 +47,7 @@ import org.testng.annotations.Test;
  * @author Wei Gao
  */
 public class SchedulerIntegrationTest extends AbstractTest {
+  private final JobFactory jobFactory = new SimpleJobFactory();
 
   @Test(timeOut = 6000L)
   public void testScheduleJobWithOneMasterOneWorker() throws Throwable {
@@ -71,8 +72,9 @@ public class SchedulerIntegrationTest extends AbstractTest {
     };
 
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
     worker.start();
     master.start();
 
@@ -86,7 +88,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
 
       Assert.assertNull(status.getLastScheduleTime());
 
-      Assert.assertTrue(jobInStartedCounter.await(1500L, TimeUnit.MILLISECONDS), "Job instance should started.");
+      Assert.assertTrue(jobInStartedCounter.await(1500L, TimeUnit.MILLISECONDS),
+          "Job instance should started.");
 
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(job);
       Assert.assertNotNull(jis);
@@ -94,7 +97,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
       JobInstance ji = jis.iterator().next();
       Assert.assertFalse(ji.getJobState().isComplete(false));
 
-      Assert.assertFalse(jobInCompleteCounter.await(2L, TimeUnit.SECONDS), "Job shouldn't complete yet.");
+      Assert.assertFalse(jobInCompleteCounter.await(2L, TimeUnit.SECONDS),
+          "Job shouldn't complete yet.");
       Assert.assertTrue(jobInCompleteCounter.await(2L, TimeUnit.SECONDS), "Job should complete");
       jobInRemovedCounter.await();
       jis = jobService.getJobInstancesByJobDef(job);
@@ -111,7 +115,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
 
   @Test(timeOut = 10000L)
   public void testScheduleJobWithMasterFailed() throws Throwable {
-    final AtomicReference<CountDownLatch> masterUpCounter = new AtomicReference<>(new CountDownLatch(1));
+    final AtomicReference<CountDownLatch> masterUpCounter = new AtomicReference<>(
+        new CountDownLatch(1));
     final CountDownLatch masterDownCounter = new CountDownLatch(1);
     final CountDownLatch jobInScheduledCounter = new CountDownLatch(1);
     final CountDownLatch jobInCompleteCounter = new CountDownLatch(1);
@@ -143,9 +148,11 @@ public class SchedulerIntegrationTest extends AbstractTest {
       }
     };
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
-    SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
-    SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
+    SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
     worker.start();
     // Make sure master is leader
     master1.start();
@@ -170,9 +177,12 @@ public class SchedulerIntegrationTest extends AbstractTest {
       Assert.assertTrue(is.isEmpty());
       Assert.assertNull(status.getLastScheduleTime());
 
-      Assert.assertFalse(jobInScheduledCounter.await(1L, TimeUnit.SECONDS), "Job instance shouldn't be scheduled yet.");
-      Assert.assertTrue(jobInScheduledCounter.await(2L, TimeUnit.SECONDS), "Job instance should be scheduled yet.");
-      Assert.assertFalse(jobInCompleteCounter.await(1L, TimeUnit.SECONDS), "Job instance shouldn't complete yet.");
+      Assert.assertFalse(jobInScheduledCounter.await(1L, TimeUnit.SECONDS),
+          "Job instance shouldn't be scheduled yet.");
+      Assert.assertTrue(jobInScheduledCounter.await(2L, TimeUnit.SECONDS),
+          "Job instance should be scheduled yet.");
+      Assert.assertFalse(jobInCompleteCounter.await(1L, TimeUnit.SECONDS),
+          "Job instance shouldn't complete yet.");
 
       /* new master scheduled job instance */
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(job);
@@ -181,7 +191,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
       JobInstance ji = jis.iterator().next();
       Assert.assertFalse(ji.getJobState().isComplete(false));
 
-      Assert.assertTrue(jobInCompleteCounter.await(4L, TimeUnit.SECONDS), "Job instance should complete.");
+      Assert.assertTrue(jobInCompleteCounter.await(4L, TimeUnit.SECONDS),
+          "Job instance should complete.");
 
       jobInRemovedCounter.await();
 
@@ -202,7 +213,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
 
   @Test(timeOut = 10000L)
   public void testScheduleJobWithMasterFailedAndThenStartNewMaster() throws Throwable {
-    final AtomicReference<CountDownLatch> masterUpCounter = new AtomicReference<>(new CountDownLatch(1));
+    final AtomicReference<CountDownLatch> masterUpCounter = new AtomicReference<>(
+        new CountDownLatch(1));
     final CountDownLatch jobInScheduledCounter = new CountDownLatch(1);
     final CountDownLatch jobInCompleteCounter = new CountDownLatch(1);
     final CountDownLatch jobInRemovedCounter = new CountDownLatch(1);
@@ -228,9 +240,11 @@ public class SchedulerIntegrationTest extends AbstractTest {
       }
     };
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
-    SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
-    SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerMaster master1 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
+    SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
     worker.start();
     master1.start();
 
@@ -257,7 +271,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
 
       /* start new master */
       master2.start();
-      Assert.assertTrue(jobInScheduledCounter.await(3500L, TimeUnit.MILLISECONDS), "Job instance should be scheduled");
+      Assert.assertTrue(jobInScheduledCounter.await(3500L, TimeUnit.MILLISECONDS),
+          "Job instance should be scheduled");
 
       /* one job instance created and not finished yet */
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(job);
@@ -266,7 +281,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
       JobInstance ji = jis.iterator().next();
       Assert.assertFalse(ji.getJobState().isComplete(false));
 
-      Assert.assertTrue(jobInCompleteCounter.await(5L, TimeUnit.SECONDS), "Job instance should completed");
+      Assert.assertTrue(jobInCompleteCounter.await(5L, TimeUnit.SECONDS),
+          "Job instance should completed");
       jobInRemovedCounter.await();
 
       /* job finished and job instance has been removed by master */
@@ -307,13 +323,14 @@ public class SchedulerIntegrationTest extends AbstractTest {
       }
     };
     SchedulerWorker worker1 = new SchedulerWorker(workerNode, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
-    SchedulerMaster master = new SchedulerMaster(workerNode, zkUrl, Integer.MAX_VALUE, observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerMaster master = new SchedulerMaster(workerNode, zkUrl, Integer.MAX_VALUE, jobFactory,
+        observer);
 
     worker1.start();
     master.start();
     SchedulerWorker worker2 = new SchedulerWorker(workerNode, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
 
     try {
       /* Create Job with 1 second delay */
@@ -330,19 +347,22 @@ public class SchedulerIntegrationTest extends AbstractTest {
       Assert.assertTrue(is.isEmpty());
       Assert.assertNull(status.getLastScheduleTime());
 
-      Assert.assertTrue(jobInStartCounter.await(2L, TimeUnit.SECONDS), "Job instance should started");
+      Assert
+          .assertTrue(jobInStartCounter.await(2L, TimeUnit.SECONDS), "Job instance should started");
 
       /* master create one job instance , worker picked it up , marked as running */
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(job);
       Assert.assertNotNull(jis);
       Assert.assertEquals(jis.size(), 1);
       JobInstance ji = jis.iterator().next();
-      Assert.assertEquals(ji.getRunStatus().get(workerNode.getId()).getState(), JobInstanceState.RUNNING);
+      Assert.assertEquals(ji.getRunStatus().get(workerNode.getId()).getState(),
+          JobInstanceState.RUNNING);
       Assert.assertFalse(ji.getJobState().isComplete(false));
 
       /* shutdown worker */
       worker1.shutdown();
-      Assert.assertFalse(jobInCompletedCounter.await(2L, TimeUnit.SECONDS), "Job instance shouldn't complete");
+      Assert.assertFalse(jobInCompletedCounter.await(2L, TimeUnit.SECONDS),
+          "Job instance shouldn't complete");
 
       /* job instance still exists , not finished yet */
       jis = jobService.getJobInstancesByJobDef(job);
@@ -354,7 +374,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
       /* start new worker */
       worker2.start();
 
-      Assert.assertTrue(jobInCompletedCounter.await(4L, TimeUnit.SECONDS), "Job instance should complete");
+      Assert.assertTrue(jobInCompletedCounter.await(4L, TimeUnit.SECONDS),
+          "Job instance should complete");
       jobInRemovedCounter.await();
 
       /* new worker finished job , master removed job instance */
@@ -408,12 +429,12 @@ public class SchedulerIntegrationTest extends AbstractTest {
       }
     };
     SchedulerWorker worker1 = new SchedulerWorker(workerNode1, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, observer);
     SchedulerWorker worker2 = new SchedulerWorker(workerNode2, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
     SchedulerWorker worker3 = new SchedulerWorker(workerNode3, zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
 
     worker1.start();
     worker2.start();
@@ -435,16 +456,20 @@ public class SchedulerIntegrationTest extends AbstractTest {
       Assert.assertTrue(is.isEmpty());
       Assert.assertNull(status.getLastScheduleTime());
 
-      Assert.assertTrue(jobInStartedCounter.await(2L, TimeUnit.SECONDS), "Job instance should started");
+      Assert.assertTrue(jobInStartedCounter.await(2L, TimeUnit.SECONDS),
+          "Job instance should started");
 
       /* master create one job instance , worker picked it up , marked as running */
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(job);
       Assert.assertNotNull(jis);
       Assert.assertEquals(jis.size(), 1);
       JobInstance ji = jis.iterator().next();
-      Assert.assertEquals(ji.getRunStatus().get(workerNode1.getId()).getState(), JobInstanceState.RUNNING);
-      Assert.assertEquals(ji.getRunStatus().get(workerNode2.getId()).getState(), JobInstanceState.RUNNING);
-      Assert.assertEquals(ji.getRunStatus().get(workerNode3.getId()).getState(), JobInstanceState.RUNNING);
+      Assert.assertEquals(ji.getRunStatus().get(workerNode1.getId()).getState(),
+          JobInstanceState.RUNNING);
+      Assert.assertEquals(ji.getRunStatus().get(workerNode2.getId()).getState(),
+          JobInstanceState.RUNNING);
+      Assert.assertEquals(ji.getRunStatus().get(workerNode3.getId()).getState(),
+          JobInstanceState.RUNNING);
       Assert.assertFalse(ji.getJobState().isComplete(false));
 
       /* shutdown worker */
@@ -456,9 +481,11 @@ public class SchedulerIntegrationTest extends AbstractTest {
       Assert.assertNotNull(jis);
       Assert.assertEquals(jis.size(), 1);
       ji = jis.iterator().next();
-      Assert.assertEquals(ji.getRunStatus().get(workerNode1.getId()).getState(), JobInstanceState.NODE_FAILED);
+      Assert.assertEquals(ji.getRunStatus().get(workerNode1.getId()).getState(),
+          JobInstanceState.NODE_FAILED);
 
-      Assert.assertTrue(jobInCompletedCounter.await(4L, TimeUnit.SECONDS), "Job instance should completed");
+      Assert.assertTrue(jobInCompletedCounter.await(4L, TimeUnit.SECONDS),
+          "Job instance should completed");
       jobInRemovedCounter.await();
       /* rest worker finished job , master removed job instance */
       jis = jobService.getJobInstancesByJobDef(job);
@@ -480,6 +507,7 @@ public class SchedulerIntegrationTest extends AbstractTest {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefCompleteCounter = new CountDownLatch(1);
     SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
+        jobFactory,
         new AbstractCloudSchedulerObserver() {
           @Override
           public void masterNodeUp(UUID id, Instant time) {
@@ -498,7 +526,8 @@ public class SchedulerIntegrationTest extends AbstractTest {
           .global()
           .build();
       jobService.saveJobDefinition(job);
-      Assert.assertTrue(jobDefCompleteCounter.await(1L, TimeUnit.SECONDS), "Job definition should completed.");
+      Assert.assertTrue(jobDefCompleteCounter.await(1L, TimeUnit.SECONDS),
+          "Job definition should completed.");
     } finally {
       master.shutdown();
     }
@@ -532,21 +561,26 @@ public class SchedulerIntegrationTest extends AbstractTest {
         jobDefCompletedCounter.countDown();
       }
     };
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, observer);
+    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, observer);
     SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, new SimpleJobFactory(), observer);
+        Integer.MAX_VALUE, threadPool, jobFactory, observer);
     master.start();
     try {
       JobDefinition job = JobDefinition.newBuilder(TestSleepJob.class).build();
       jobService.saveJobDefinition(job);
 
-      Assert.assertTrue(jobInstanceScheduledCounter.await(1L, TimeUnit.SECONDS), "Job instance should been scheduled.");
-      Assert.assertFalse(jobInstanceCompletedCounter.await(4L, TimeUnit.SECONDS), "Job instance shouldn't complete.");
+      Assert.assertTrue(jobInstanceScheduledCounter.await(1L, TimeUnit.SECONDS),
+          "Job instance should been scheduled.");
+      Assert.assertFalse(jobInstanceCompletedCounter.await(4L, TimeUnit.SECONDS),
+          "Job instance shouldn't complete.");
 
       worker.start();
-      Assert.assertTrue(jobInstanceCompletedCounter.await(4L, TimeUnit.SECONDS), "Job instance should complete.");
-      Assert.assertTrue(jobInstanceRemovedCounter.await(1L, TimeUnit.SECONDS), "Job instance should been removed");
-      Assert.assertTrue(jobDefCompletedCounter.await(1L, TimeUnit.SECONDS), "Job definition should complete");
+      Assert.assertTrue(jobInstanceCompletedCounter.await(4L, TimeUnit.SECONDS),
+          "Job instance should complete.");
+      Assert.assertTrue(jobInstanceRemovedCounter.await(1L, TimeUnit.SECONDS),
+          "Job instance should been removed");
+      Assert.assertTrue(jobDefCompletedCounter.await(1L, TimeUnit.SECONDS),
+          "Job definition should complete");
     } finally {
       worker.shutdown();
       master.shutdown();
