@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.worker;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.JobFactory;
@@ -36,29 +38,26 @@ import io.github.cloudscheduler.model.JobInstanceState;
 import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.service.JobServiceImpl;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class SchedulerWorkerConnectTest {
-  private final static Logger logger = LoggerFactory.getLogger(SchedulerWorkerConnectTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(SchedulerWorkerConnectTest.class);
   private final JobFactory jobFactory = new SimpleJobFactory();
 
-  @Test(timeOut = 10000L)
+  @Test
+  @Timeout(10)
   public void testWorkerKeepRetry() throws Throwable {
     int port = AbstractTest.randomPort();
     logger.info("Creating a zookeeper on port {}", port);
@@ -69,23 +68,30 @@ public class SchedulerWorkerConnectTest {
     final CountDownLatch workerDownCounter = new CountDownLatch(1);
     final CountDownLatch jobInCompleteCounter = new CountDownLatch(1);
 
-    SchedulerWorker worker = new SchedulerWorker(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
-        threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
-      @Override
-      public void workerNodeUp(UUID nodeId, Instant time) {
-        workerUpCounter.countDown();
-      }
+    SchedulerWorker worker =
+        new SchedulerWorker(
+            new Node(),
+            zkTestServer.getConnectString(),
+            Integer.MAX_VALUE,
+            threadPool,
+            jobFactory,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void workerNodeUp(UUID nodeId, Instant time) {
+                workerUpCounter.countDown();
+              }
 
-      @Override
-      public void workerNodeDown(UUID nodeId, Instant time) {
-        workerDownCounter.countDown();
-      }
+              @Override
+              public void workerNodeDown(UUID nodeId, Instant time) {
+                workerDownCounter.countDown();
+              }
 
-      @Override
-      public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-        jobInCompleteCounter.countDown();
-      }
-    });
+              @Override
+              public void jobInstanceCompleted(
+                  UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
+                jobInCompleteCounter.countDown();
+              }
+            });
     logger.info("Starting scheduler worker");
     worker.start();
     try {
@@ -95,21 +101,22 @@ public class SchedulerWorkerConnectTest {
       workerDownCounter.await();
       logger.info("Recreate a zookeeper on port {}", port);
       zkTestServer = new TestingServer(port);
-      ZooKeeper zooKeeper = ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE).get();
+      ZooKeeper zooKeeper =
+          ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE)
+              .get();
       try {
         JobService jobService = new JobServiceImpl(zooKeeper);
         Instant start = Instant.now().plusSeconds(1);
-        JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-            .startAt(start).build();
+        JobDefinition job = JobDefinition.newBuilder(TestJob.class).startAt(start).build();
         jobService.saveJobDefinition(job);
         JobInstance jobIn = jobService.scheduleJobInstance(job);
         jobIn = jobService.getJobInstanceById(jobIn.getId());
-        Assert.assertNotNull(jobIn);
-        Assert.assertEquals(jobIn.getJobState(), JobInstanceState.SCHEDULED);
-        Assert.assertTrue(jobInCompleteCounter.await(1500L, TimeUnit.MILLISECONDS));
+        assertThat(jobIn).isNotNull();
+        assertThat(jobIn.getJobState()).isEqualTo(JobInstanceState.SCHEDULED);
+        assertThat(jobInCompleteCounter.await(1500L, TimeUnit.MILLISECONDS)).isTrue();
         jobIn = jobService.getJobInstanceById(jobIn.getId());
-        Assert.assertNotNull(jobIn);
-        Assert.assertEquals(jobIn.getJobState(), JobInstanceState.COMPLETE);
+        assertThat(jobIn);
+        assertThat(jobIn.getJobState()).isEqualTo(JobInstanceState.COMPLETE);
       } finally {
         zooKeeper.close();
       }
@@ -120,7 +127,8 @@ public class SchedulerWorkerConnectTest {
     }
   }
 
-  @Test(timeOut = 5000L)
+  @Test
+  @Timeout(5)
   public void testShutdownWorkerWhileZKDown() throws Throwable {
     int port = AbstractTest.randomPort();
     logger.info("Creating a zookeeper on port {}", port);
@@ -128,18 +136,24 @@ public class SchedulerWorkerConnectTest {
     ExecutorService threadPool = Executors.newCachedThreadPool();
     CountDownLatch workerUpCounter = new CountDownLatch(1);
     CountDownLatch workerDownCounter = new CountDownLatch(1);
-    SchedulerWorker worker = new SchedulerWorker(new Node(), zkTestServer.getConnectString(), Integer.MAX_VALUE,
-        threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
-      @Override
-      public void workerNodeUp(UUID nodeId, Instant time) {
-        workerUpCounter.countDown();
-      }
+    SchedulerWorker worker =
+        new SchedulerWorker(
+            new Node(),
+            zkTestServer.getConnectString(),
+            Integer.MAX_VALUE,
+            threadPool,
+            jobFactory,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void workerNodeUp(UUID nodeId, Instant time) {
+                workerUpCounter.countDown();
+              }
 
-      @Override
-      public void workerNodeDown(UUID nodeId, Instant time) {
-        workerDownCounter.countDown();
-      }
-    });
+              @Override
+              public void workerNodeDown(UUID nodeId, Instant time) {
+                workerDownCounter.countDown();
+              }
+            });
     logger.info("Starting scheduler master");
     worker.start();
     try {

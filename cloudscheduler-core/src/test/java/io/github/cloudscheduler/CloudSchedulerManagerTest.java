@@ -24,9 +24,10 @@
 
 package io.github.cloudscheduler;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -36,90 +37,94 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class CloudSchedulerManagerTest extends AbstractTest {
   private static final Logger logger = LoggerFactory.getLogger(CloudSchedulerManagerTest.class);
 
   private static final ConcurrentMap<String, CountDownLatch> counters = new ConcurrentHashMap<>();
   private static final String TEST_NAME = "name";
 
-  @Test(timeOut = 3000L)
+  @Test
+  @Timeout(3)
   public void testStartMasterAndWorker() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch workerUpCounter = new CountDownLatch(1);
-    CloudSchedulerManager manager = CloudSchedulerManager
-        .newBuilder(zkUrl)
-        .setThreadPool(threadPool)
-        .setObserverSupplier(() -> new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    CloudSchedulerManager manager =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setThreadPool(threadPool)
+            .setNodeId(UUID.randomUUID())
+            .setZkTimeout(300)
+            .setObserverSupplier(
+                () ->
+                    new AbstractCloudSchedulerObserver() {
+                      @Override
+                      public void masterNodeUp(UUID nodeId, Instant time) {
+                        masterUpCounter.countDown();
+                      }
 
-          @Override
-          public void workerNodeUp(UUID nodeId, Instant time) {
-            workerUpCounter.countDown();
-          }
-        })
-        .build();
+                      @Override
+                      public void workerNodeUp(UUID nodeId, Instant time) {
+                        workerUpCounter.countDown();
+                      }
+                    })
+            .build();
     manager.start();
     try {
       masterUpCounter.await();
       workerUpCounter.await();
       List<UUID> workers = jobService.getCurrentWorkers();
-      Assert.assertNotNull(workers);
-      Assert.assertEquals(workers.size(), 1);
+      assertThat(workers).hasSize(1);
 
       logger.trace("ZooKeeper: {}", zooKeeper);
       List<String> masters = ZooKeeperUtils.getChildren(zooKeeper, "/lock/master").get();
-      Assert.assertEquals(masters.size(), 1);
+      assertThat(masters.size()).isEqualTo(1);
     } finally {
       manager.shutdown();
     }
   }
 
-  @Test(timeOut = 3000L)
+  @Test
+  @Timeout(3)
   public void testSingleJob() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch workerUpCounter = new CountDownLatch(1);
     String name = "testSingleJob";
     counters.putIfAbsent(name, new CountDownLatch(1));
     CountDownLatch counter = counters.get(name);
-    CloudSchedulerManager manager = CloudSchedulerManager
-        .newBuilder(zkUrl)
-        .setThreadPool(threadPool)
-        .setObserverSupplier(() -> new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    CloudSchedulerManager manager =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setThreadPool(threadPool)
+            .setRoles(NodeRole.MASTER, NodeRole.WORKER)
+            .setJobFactory(new SimpleJobFactory())
+            .setObserverSupplier(
+                () ->
+                    new AbstractCloudSchedulerObserver() {
+                      @Override
+                      public void masterNodeUp(UUID nodeId, Instant time) {
+                        masterUpCounter.countDown();
+                      }
 
-          @Override
-          public void workerNodeUp(UUID nodeId, Instant time) {
-            workerUpCounter.countDown();
-          }
-        })
-        .build();
+                      @Override
+                      public void workerNodeUp(UUID nodeId, Instant time) {
+                        workerUpCounter.countDown();
+                      }
+                    })
+            .build();
     manager.start();
     try {
       Scheduler scheduler = new SchedulerImpl(zooKeeper);
       masterUpCounter.await();
       workerUpCounter.await();
 
-      JobDefinition jd = JobDefinition.newBuilder(CloudTestJob.class)
-          .jobData(TEST_NAME, name)
-          .runNow()
-          .build();
+      JobDefinition jd =
+          JobDefinition.newBuilder(CloudTestJob.class).jobData(TEST_NAME, name).runNow().build();
       scheduler.schedule(jd);
-      Assert.assertTrue(counter.await(1000L, TimeUnit.MILLISECONDS), "Job run be run.");
+      assertThat(counter.await(1000L, TimeUnit.MILLISECONDS)).as("Job run be run.").isTrue();
     } finally {
       manager.shutdown();
     }
@@ -132,104 +137,129 @@ public class CloudSchedulerManagerTest extends AbstractTest {
     String name = "testSingleRepeatJob";
     counters.putIfAbsent(name, new CountDownLatch(3));
     CountDownLatch counter = counters.get(name);
-    CloudSchedulerManager manager = CloudSchedulerManager
-        .newBuilder(zkUrl)
-        .setThreadPool(threadPool)
-        .setObserverSupplier(() -> new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    CloudSchedulerManager manager =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setThreadPool(threadPool)
+            .setObserverSupplier(
+                () ->
+                    new AbstractCloudSchedulerObserver() {
+                      @Override
+                      public void masterNodeUp(UUID nodeId, Instant time) {
+                        masterUpCounter.countDown();
+                      }
 
-          @Override
-          public void workerNodeUp(UUID nodeId, Instant time) {
-            workerUpCounter.countDown();
-          }
-        })
-        .build();
+                      @Override
+                      public void workerNodeUp(UUID nodeId, Instant time) {
+                        workerUpCounter.countDown();
+                      }
+                    })
+            .build();
     manager.start();
     try {
       Scheduler scheduler = new SchedulerImpl(zooKeeper);
       masterUpCounter.await();
       workerUpCounter.await();
 
-      JobDefinition jd = JobDefinition.newBuilder(CloudTestJob.class)
-          .jobData(TEST_NAME, name)
-          .fixedRate(Duration.ofSeconds(5))
-          .repeat(3).build();
+      JobDefinition jd =
+          JobDefinition.newBuilder(CloudTestJob.class)
+              .jobData(TEST_NAME, name)
+              .fixedRate(Duration.ofSeconds(5))
+              .repeat(3)
+              .build();
       scheduler.schedule(jd);
-      Assert.assertTrue(counter.await(15000L, TimeUnit.MILLISECONDS), "Job should run 3 times within 15 seconds");
+      assertThat(counter.await(15000L, TimeUnit.MILLISECONDS))
+          .as("Job should run 3 times within 15 seconds")
+          .isTrue();
     } finally {
       manager.shutdown();
     }
   }
 
-  @Test(timeOut = 20000L)
+  @Test
+  @Timeout(20)
   public void testPauseResumeJob() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch workerUpCounter = new CountDownLatch(1);
-    AtomicReference<CountDownLatch> jobInCompleteCounter = new AtomicReference<>(new CountDownLatch(1));
+    AtomicReference<CountDownLatch> jobInCompleteCounter =
+        new AtomicReference<>(new CountDownLatch(1));
     CountDownLatch jobInRemovedCounter = new CountDownLatch(3);
     CountDownLatch jobCompleteCounter = new CountDownLatch(1);
 
     String name = "testPauseResumeJob";
     counters.putIfAbsent(name, new CountDownLatch(3));
 
-    CloudSchedulerManager manager = CloudSchedulerManager
-        .newBuilder(zkUrl)
-        .setThreadPool(threadPool)
-        .setObserverSupplier(() -> new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    CloudSchedulerManager manager =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setThreadPool(threadPool)
+            .setObserverSupplier(
+                () ->
+                    new AbstractCloudSchedulerObserver() {
+                      @Override
+                      public void masterNodeUp(UUID nodeId, Instant time) {
+                        masterUpCounter.countDown();
+                      }
 
-          @Override
-          public void workerNodeUp(UUID nodeId, Instant time) {
-            workerUpCounter.countDown();
-          }
+                      @Override
+                      public void workerNodeUp(UUID nodeId, Instant time) {
+                        workerUpCounter.countDown();
+                      }
 
-          @Override
-          public void jobInstanceRemoved(UUID jobInId, UUID nodeId, Instant time) {
-            jobInRemovedCounter.countDown();
-          }
+                      @Override
+                      public void jobInstanceRemoved(UUID jobInId, UUID nodeId, Instant time) {
+                        jobInRemovedCounter.countDown();
+                      }
 
-          @Override
-          public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-            logger.info("Job instance completed.");
-            jobInCompleteCounter.get().countDown();
-          }
+                      @Override
+                      public void jobInstanceCompleted(
+                          UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
+                        logger.info("Job instance completed.");
+                        jobInCompleteCounter.get().countDown();
+                      }
 
-          @Override
-          public void jobDefinitionCompleted(UUID jobDefId, Instant time) {
-            jobCompleteCounter.countDown();
-          }
-        })
-        .build();
+                      @Override
+                      public void jobDefinitionCompleted(UUID jobDefId, Instant time) {
+                        jobCompleteCounter.countDown();
+                      }
+                    })
+            .build();
     manager.start();
     try {
       Scheduler scheduler = new SchedulerImpl(zooKeeper);
       masterUpCounter.await();
       workerUpCounter.await();
 
-      JobDefinition jd = JobDefinition.newBuilder(CloudTestJob.class)
-          .jobData(TEST_NAME, name)
-          .startAt(Instant.now().plusSeconds(1L))
-          .fixedRate(Duration.ofSeconds(5))
-          .repeat(3).build();
+      JobDefinition jd =
+          JobDefinition.newBuilder(CloudTestJob.class)
+              .jobData(TEST_NAME, name)
+              .startAt(Instant.now().plusSeconds(1L))
+              .fixedRate(Duration.ofSeconds(5))
+              .repeat(3)
+              .build();
       scheduler.schedule(jd);
-      Assert.assertTrue(jobInCompleteCounter.get().await(5L, TimeUnit.SECONDS), "Job should complete.");
+      assertThat(jobInCompleteCounter.get().await(5L, TimeUnit.SECONDS))
+          .as("Job should complete.")
+          .isTrue();
       jobInCompleteCounter.set(new CountDownLatch(1));
       scheduler.pause(jd.getId(), true);
-      Assert.assertFalse(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS), "Job shouldn't run anymore.");
+      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
+          .as("Job shouldn't run anymore.")
+          .isFalse();
       scheduler.resume(jd.getId());
-      Assert.assertTrue(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS), "Job should complete again.");
+      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
+          .as("Job should complete again.")
+          .isTrue();
       jobInCompleteCounter.set(new CountDownLatch(1));
-      Assert.assertTrue(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS), "Job should complete third time.");
+      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
+          .as("Job should complete third time.")
+          .isTrue();
       jobInCompleteCounter.set(new CountDownLatch(1));
 
-      Assert.assertTrue(jobInRemovedCounter.await(2L, TimeUnit.SECONDS), "Job instance should be removed.");
-      Assert.assertTrue(jobCompleteCounter.await(2L, TimeUnit.SECONDS), "Job definition should completed.");
+      assertThat(jobInRemovedCounter.await(2L, TimeUnit.SECONDS))
+          .as("Job instance should be removed.")
+          .isTrue();
+      assertThat(jobCompleteCounter.await(2L, TimeUnit.SECONDS))
+          .as("Job definition should completed.")
+          .isTrue();
     } finally {
       logger.info("Shutdown for pause/resume test.");
       manager.shutdown();

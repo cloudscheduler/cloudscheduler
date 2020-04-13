@@ -30,15 +30,15 @@ package io.github.cloudscheduler.model;
  * @author Wei Gao
  */
 public enum JobInstanceState {
-  SCHEDULED,    // Scheduled, but not start yet.
-  RUNNING,      // Currently running
-  NODE_FAILED,  // Running node failed
-  COMPLETE,     // Complete successfully
-  FAILED;       // Complete but failed
+  SCHEDULED, // Scheduled, but not start yet.
+  RUNNING, // Currently running
+  NODE_FAILED, // Running node failed
+  COMPLETE, // Complete successfully
+  FAILED; // Complete but failed
 
   /**
-   * Check if JobInstance state is complete. For global job, NODE_FAILED consider
-   * as complete. Otherwise, NODE_FAILED consider as not complete.
+   * Check if JobInstance state is complete. For global job, NODE_FAILED consider as complete.
+   * Otherwise, NODE_FAILED consider as not complete.
    *
    * @param global global flag
    * @return {@code true} if state is complete, {@code false} otherwise.

@@ -24,56 +24,53 @@
 
 package io.github.cloudscheduler.codec;
 
-import io.github.cloudscheduler.util.UuidUtils;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import io.github.cloudscheduler.util.UuidUtils;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 public class EntityCodecTest {
   @Test
   public void testGetEntityCodecProvider() {
     EntityCodecProvider provider = EntityCodecProvider.getCodecProvider();
-    Assert.assertNotNull(provider);
-    Assert.assertTrue(provider instanceof EntityCodecProviderTest);
+    assertThat(provider).isNotNull();
+    assertThat(provider).isInstanceOf(EntityCodecProviderTest.class);
   }
 
   @Test
   public void testGetEntityCodec() {
     EntityCodecProvider provider = EntityCodecProvider.getCodecProvider();
-    Assert.assertNotNull(provider);
+    assertThat(provider).isNotNull();
     EntityCodec<TestEntity> codec = provider.getEntityCodec(TestEntity.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
   }
 
-  @Test(expectedExceptions = IllegalStateException.class)
+  @Test
   public void testGetEntityCodecForUnknown() {
     EntityCodecProvider provider = EntityCodecProvider.getCodecProvider();
-    Assert.assertNotNull(provider);
-    provider.getEntityCodec(Object.class);
-    Assert.fail();
+    assertThat(provider).isNotNull();
+    assertThatIllegalStateException().isThrownBy(() -> provider.getEntityCodec(Object.class));
   }
 
   @Test
   public void testEntityCodec() throws IOException {
     EntityCodecProvider provider = EntityCodecProvider.getCodecProvider();
-    Assert.assertNotNull(provider);
+    assertThat(provider).isNotNull();
     EntityCodec<TestEntity> codec = provider.getEntityCodec(TestEntity.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     UUID id = UUID.randomUUID();
     TestEntity entity = new TestEntity(id);
 
     byte[] data = codec.encode(entity);
-    Assert.assertNotNull(data);
-    Assert.assertEquals(16, data.length);
+    assertThat(data).isNotEmpty().hasSize(16);
 
     TestEntity entity1 = codec.decode(data);
-    Assert.assertNotNull(entity1);
-    UUID nid = entity1.getId();
-    Assert.assertEquals(id, nid);
+    assertThat(entity1).isNotNull();
+    assertThat(entity1.getId()).isEqualTo(id);
   }
 
   public static class EntityCodecProviderTest implements EntityCodecProvider {

@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.master;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.CloudSchedulerObserver;
@@ -37,7 +39,6 @@ import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,56 +49,64 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class SchedulerMasterTest extends AbstractTest {
 
   private static final Logger logger = LoggerFactory.getLogger(SchedulerMasterTest.class);
   private final JobFactory jobFactory = new SimpleJobFactory();
 
-  @Test(timeOut = 2000L)
+  @Test
+  @Timeout(2)
   public void testStartSchedulerMaster() throws Throwable {
     CountDownLatch jobInScheduledCounter = new CountDownLatch(1);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInScheduledCounter.countDown();
-          }
-        });
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInScheduledCounter.countDown();
+              }
+            });
     master.start();
     try {
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .build();
+      JobDefinition job = JobDefinition.newBuilder(TestJob.class).build();
       jobService.saveJobDefinition(job);
       jobInScheduledCounter.await();
       JobDefinitionProcessor processor = master.getJobProcessorById(job.getId());
-      Assert.assertNotNull(processor);
+      assertThat(processor).isNotNull();
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 3000L)
+  @Test
+  @Timeout(3)
   public void testMultipleJobDefinition() throws Throwable {
-    final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
-        new CountDownLatch(1));
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInScheduledCounter.get().countDown();
-          }
-        });
+    final AtomicReference<CountDownLatch> jobInScheduledCounter =
+        new AtomicReference<>(new CountDownLatch(1));
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInScheduledCounter.get().countDown();
+              }
+            });
     master.start();
     try {
       JobDefinition job = JobDefinition.newBuilder(TestJob.class).build();
@@ -106,254 +115,279 @@ public class SchedulerMasterTest extends AbstractTest {
       jobInScheduledCounter.get().await();
       jobInScheduledCounter.set(new CountDownLatch(1));
       JobDefinitionProcessor processor = master.getJobProcessorById(jobId1);
-      Assert.assertNotNull(processor);
+      assertThat(processor).isNotNull();
       job = JobDefinition.newBuilder(TestJob.class).build();
       jobService.saveJobDefinition(job);
       UUID jobId2 = job.getId();
       jobInScheduledCounter.get().await();
       processor = master.getJobProcessorById(jobId1);
-      Assert.assertNotNull(processor);
+      assertThat(processor).isNotNull();
       processor = master.getJobProcessorById(jobId2);
-      Assert.assertNotNull(processor);
+      assertThat(processor).isNotNull();
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 2000L)
+  @Test
+  @Timeout(2)
   public void testScheduleNowJob() throws Throwable {
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            logger.info("Job instance scheduled");
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                logger.info("Job instance scheduled");
+              }
 
-          @Override
-          public void jobDefinitionCompleted(UUID id, Instant time) {
-            logger.info("Job definition finished");
-            jobDefFinishedCounter.countDown();
-          }
-        });
+              @Override
+              public void jobDefinitionCompleted(UUID id, Instant time) {
+                logger.info("Job definition finished");
+                jobDefFinishedCounter.countDown();
+              }
+            });
     master.start();
     try {
       JobDefinition job = JobDefinition.newBuilder(TestJob.class).build();
 
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
 
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime());
 
       jobDefFinishedCounter.await();
 
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
 
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 30000L)
+  @Test
+  @Timeout(30)
   public void testScheduleJobWithRepeat() throws Throwable {
     final CountDownLatch masterUpCounter = new CountDownLatch(1);
-    final AtomicReference<CountDownLatch> jobInstanceScheduledCounter = new AtomicReference<>(
-        new CountDownLatch(1)
-    );
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    final AtomicReference<CountDownLatch> jobInstanceScheduledCounter =
+        new AtomicReference<>(new CountDownLatch(1));
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void masterNodeUp(UUID nodeId, Instant time) {
+                masterUpCounter.countDown();
+              }
 
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInstanceScheduledCounter.get().countDown();
-          }
-        });
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInstanceScheduledCounter.get().countDown();
+              }
+            });
     master.start();
     masterUpCounter.await();
     try {
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .initialDelay(Duration.ofSeconds(5))
-          .fixedRate(Duration.ofSeconds(5))
-          .allowDupInstances()
-          .repeat(3).build();
+      JobDefinition job =
+          JobDefinition.newBuilder(TestJob.class)
+              .initialDelay(Duration.ofSeconds(5))
+              .fixedRate(Duration.ofSeconds(5))
+              .allowDupInstances()
+              .repeat(3)
+              .build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
       jobInstanceScheduledCounter.get().await();
       jobInstanceScheduledCounter.set(new CountDownLatch(1));
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(is).hasSize(1);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       jobInstanceScheduledCounter.get().await();
       jobInstanceScheduledCounter.set(new CountDownLatch(1));
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 2);
+      assertThat(is).hasSize(2);
 
       jobInstanceScheduledCounter.get().await();
       jobInstanceScheduledCounter.set(new CountDownLatch(1));
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 3);
+      assertThat(is).hasSize(3);
 
-      Assert.assertFalse(jobInstanceScheduledCounter.get().await(6000L, TimeUnit.MILLISECONDS),
-          "There shouldn't be another job instance scheduled");
+      assertThat(jobInstanceScheduledCounter.get().await(6000L, TimeUnit.MILLISECONDS))
+          .as("There shouldn't be another job instance scheduled")
+          .isFalse();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 3);
+      assertThat(is).hasSize(3);
 
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 3000L)
+  @Test
+  @Timeout(3)
   public void testScheduleJobAt() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void masterNodeUp(UUID nodeId, Instant time) {
+                masterUpCounter.countDown();
+              }
 
-          @Override
-          public void jobDefinitionCompleted(UUID id, Instant time) {
-            jobDefFinishedCounter.countDown();
-          }
-        });
+              @Override
+              public void jobDefinitionCompleted(UUID id, Instant time) {
+                jobDefFinishedCounter.countDown();
+              }
+            });
     master.start();
     masterUpCounter.await();
     try {
       Instant t = Instant.now().plus(Duration.ofSeconds(1));
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .startAt(t).build();
+      JobDefinition job = JobDefinition.newBuilder(TestJob.class).startAt(t).build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(is).isEmpty();
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
       jobDefFinishedCounter.await();
 
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
 
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 3000L)
+  @Test
+  @Timeout(3)
   public void testCustomizedScheduleTimeCalculator() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void masterNodeUp(UUID nodeId, Instant time) {
+                masterUpCounter.countDown();
+              }
 
-          @Override
-          public void jobDefinitionCompleted(UUID id, Instant time) {
-            jobDefFinishedCounter.countDown();
-          }
-        });
+              @Override
+              public void jobDefinitionCompleted(UUID id, Instant time) {
+                jobDefFinishedCounter.countDown();
+              }
+            });
     master.start();
     masterUpCounter.await();
     try {
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .customizedCalculator(TestScheduleCalculator.class)
-          .build();
+      JobDefinition job =
+          JobDefinition.newBuilder(TestJob.class)
+              .customizedCalculator(TestScheduleCalculator.class)
+              .build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(is).isEmpty();
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
       jobDefFinishedCounter.await();
 
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
 
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 30000L)
+  @Test
+  @Timeout(30)
   public void testScheduleJobRepeatWithComplete() throws Throwable {
-    final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
-        new CountDownLatch(1));
+    final AtomicReference<CountDownLatch> jobInScheduledCounter =
+        new AtomicReference<>(new CountDownLatch(1));
     final CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
 
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInScheduledCounter.get().countDown();
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInScheduledCounter.get().countDown();
+              }
 
-          @Override
-          public void jobDefinitionCompleted(UUID id, Instant time) {
-            jobDefFinishedCounter.countDown();
-          }
-        });
+              @Override
+              public void jobDefinitionCompleted(UUID id, Instant time) {
+                jobDefFinishedCounter.countDown();
+              }
+            });
     master.start();
     try {
       UUID nodeId = UUID.randomUUID();
 
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .initialDelay(Duration.ofSeconds(5))
-          .fixedRate(Duration.ofSeconds(5))
-          .repeat(3).build();
+      JobDefinition job =
+          JobDefinition.newBuilder(TestJob.class)
+              .initialDelay(Duration.ofSeconds(5))
+              .fixedRate(Duration.ofSeconds(5))
+              .repeat(3)
+              .build();
       jobService.saveJobDefinition(job);
       logger.info("Job definition created");
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
       jobInScheduledCounter.get().await();
       jobInScheduledCounter.set(new CountDownLatch(1));
@@ -361,18 +395,17 @@ public class SchedulerMasterTest extends AbstractTest {
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 1);
+      assertThat(is).hasSize(1);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(1);
 
-      Assert.assertFalse(jobInScheduledCounter.get().await(6000L, TimeUnit.MILLISECONDS),
-          "Job instance shouldn't scheduled again.");
+      assertThat(jobInScheduledCounter.get().await(6000L, TimeUnit.MILLISECONDS))
+          .as("Job instance shouldn't scheduled again.")
+          .isFalse();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 1);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(1);
 
       JobInstance instance = is.iterator().next();
       logger.info("Start process JobInstance {}", instance.getId());
@@ -385,10 +418,9 @@ public class SchedulerMasterTest extends AbstractTest {
       logger.info("Job instance scheduled again");
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 2);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(2);
 
       instance = is.iterator().next();
       logger.info("Start process JobInstance {}", instance.getId());
@@ -398,77 +430,84 @@ public class SchedulerMasterTest extends AbstractTest {
 
       jobDefFinishedCounter.await();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 3);
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(3);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 30000L)
+  @Test
+  @Timeout(30)
   public void testScheduleJobRepeatWithFixedDelay() throws Throwable {
     logger.info("Start fixed delay test.");
-    final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
-        new CountDownLatch(1));
-    final AtomicReference<CountDownLatch> jobInRemovedCounter = new AtomicReference<>(
-        new CountDownLatch(1));
+    final AtomicReference<CountDownLatch> jobInScheduledCounter =
+        new AtomicReference<>(new CountDownLatch(1));
+    final AtomicReference<CountDownLatch> jobInRemovedCounter =
+        new AtomicReference<>(new CountDownLatch(1));
     final CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
     final AtomicInteger jobScheduledTimes = new AtomicInteger(0);
 
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobScheduledTimes.incrementAndGet();
-            jobInScheduledCounter.get().countDown();
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobScheduledTimes.incrementAndGet();
+                jobInScheduledCounter.get().countDown();
+              }
 
-          @Override
-          public void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInRemovedCounter.get().countDown();
-          }
+              @Override
+              public void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInRemovedCounter.get().countDown();
+              }
 
-          @Override
-          public void jobDefinitionCompleted(UUID id, Instant time) {
-            jobDefFinishedCounter.countDown();
-          }
-        });
+              @Override
+              public void jobDefinitionCompleted(UUID id, Instant time) {
+                jobDefFinishedCounter.countDown();
+              }
+            });
     master.start();
     try {
       UUID nodeId = UUID.randomUUID();
 
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .startAt(Instant.now().plusSeconds(2L))
-          .fixedDelay(Duration.ofSeconds(5))
-          .repeat(3).build();
+      JobDefinition job =
+          JobDefinition.newBuilder(TestJob.class)
+              .startAt(Instant.now().plusSeconds(2L))
+              .fixedDelay(Duration.ofSeconds(5))
+              .repeat(3)
+              .build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
-      Assert.assertTrue(jobInScheduledCounter.get().await(3L, TimeUnit.SECONDS),
-          "Job should scheduled");
+      assertThat(jobInScheduledCounter.get().await(3L, TimeUnit.SECONDS))
+          .as("Job should scheduled")
+          .isTrue();
       jobInScheduledCounter.set(new CountDownLatch(1));
       logger.info("Job instance scheduled");
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 1);
+      assertThat(is).hasSize(1);
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(1);
 
-      Assert.assertFalse(jobInScheduledCounter.get().await(6L, TimeUnit.SECONDS),
-          "Job instance shouldn't scheduled again.");
+      assertThat(jobInScheduledCounter.get().await(6L, TimeUnit.SECONDS))
+          .as("Job instance shouldn't scheduled again.")
+          .isFalse();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 1);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(1);
 
       JobInstance instance = is.iterator().next();
       logger.info("Start process JobInstance {}", instance.getId());
@@ -480,18 +519,20 @@ public class SchedulerMasterTest extends AbstractTest {
       jobInRemovedCounter.get().await();
       jobInRemovedCounter.set(new CountDownLatch(1));
 
-      Assert.assertTrue(jobInScheduledCounter.get().await(6L, TimeUnit.SECONDS),
-          "Job should scheduled again.");
+      assertThat(jobInScheduledCounter.get().await(6L, TimeUnit.SECONDS))
+          .as("Job should scheduled again.")
+          .isTrue();
       jobInScheduledCounter.set(new CountDownLatch(1));
       logger.info("Job instance scheduled again");
       Thread.sleep(1000L);
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobScheduledTimes.get(), 2, "Job scheduled should be called two times");
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 2);
+      assertThat(jobScheduledTimes.get())
+          .as("Job scheduled should be called two times")
+          .isEqualTo(2);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(2);
 
       instance = is.iterator().next();
       logger.info("Start process JobInstance {}", instance.getId());
@@ -508,8 +549,7 @@ public class SchedulerMasterTest extends AbstractTest {
       logger.info("Job instance scheduled third time");
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
 
       instance = is.iterator().next();
       logger.info("Start process JobInstance {}", instance.getId());
@@ -521,38 +561,43 @@ public class SchedulerMasterTest extends AbstractTest {
       jobDefFinishedCounter.await();
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
+      assertThat(is).isEmpty();
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getRunCount(), 3);
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getRunCount()).isEqualTo(3);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 20000L)
+  @Test
+  @Timeout(20)
   public void testStart1000JobInstancesAtSameTime() throws Throwable {
     int jobDefNumber = 1000;
     final CountDownLatch jobInScheduledCounter = new CountDownLatch(jobDefNumber);
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInScheduledCounter.countDown();
-          }
-        });
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInScheduledCounter.countDown();
+              }
+            });
     master.start();
     try {
       Instant startTime = Instant.now().plusSeconds(5);
       List<CompletableFuture<?>> fs = new ArrayList<>(jobDefNumber);
       for (int i = 0; i < jobDefNumber; i++) {
-        JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class)
-            .startAt(startTime)
-            .build();
-        fs.add(jobService.saveJobDefinitionAsync(jobDef).thenAccept(v ->
-            logger.info("JobDefinition {} saved", jobDef.getId())));
+        JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class).startAt(startTime).build();
+        fs.add(
+            jobService
+                .saveJobDefinitionAsync(jobDef)
+                .thenAccept(v -> logger.info("JobDefinition {} saved", jobDef.getId())));
       }
       CountDownLatch countDownLatch = new CountDownLatch(1);
       CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
@@ -562,13 +607,14 @@ public class SchedulerMasterTest extends AbstractTest {
       jobInScheduledCounter.await();
       logger.info("All job instance scheduled.");
       List<JobInstance> jobIns = jobService.listAllJobInstances();
-      Assert.assertEquals(jobIns.size(), jobDefNumber);
+      assertThat(jobIns).hasSize(jobDefNumber);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 30000L)
+  @Test
+  @Timeout(30)
   public void test1000WorkerNodesWith1000JobDefs() throws Throwable {
     int jobDefNumber = 1000;
     int nodeNumber = 1000;
@@ -577,37 +623,44 @@ public class SchedulerMasterTest extends AbstractTest {
     CountDownLatch workerUpCounter = new CountDownLatch(nodeNumber);
     CountDownLatch jobInstanceCounter = new CountDownLatch(jobDefNumber);
 
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void masterNodeUp(UUID nodeId, Instant time) {
-            masterUpCounter.countDown();
-          }
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void masterNodeUp(UUID nodeId, Instant time) {
+                masterUpCounter.countDown();
+              }
 
-          @Override
-          public void workerNodeUp(UUID nodeId, Instant time) {
-            workerUpCounter.countDown();
-          }
+              @Override
+              public void workerNodeUp(UUID nodeId, Instant time) {
+                workerUpCounter.countDown();
+              }
 
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInstanceCounter.countDown();
-          }
-        });
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInstanceCounter.countDown();
+              }
+            });
     Instant startTime = Instant.now().plusSeconds(5);
     List<CompletableFuture<?>> fs = new ArrayList<>(jobDefNumber);
     for (int i = 0; i < jobDefNumber; i++) {
-      JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class)
-          .startAt(startTime)
-          .build();
-      fs.add(jobService.saveJobDefinitionAsync(jobDef).thenAccept(v ->
-          logger.info("JobDefinition {} saved", jobDef.getId())));
+      JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class).startAt(startTime).build();
+      fs.add(
+          jobService
+              .saveJobDefinitionAsync(jobDef)
+              .thenAccept(v -> logger.info("JobDefinition {} saved", jobDef.getId())));
     }
     for (int i = 0; i < nodeNumber; i++) {
       Node node = new Node();
-      fs.add(jobService.registerWorkerAsync(node).thenAccept(v ->
-          logger.info("Node: {} registered", node)));
+      fs.add(
+          jobService
+              .registerWorkerAsync(node)
+              .thenAccept(v -> logger.info("Node: {} registered", node)));
     }
     CountDownLatch countDownLatch = new CountDownLatch(1);
     CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
@@ -618,67 +671,69 @@ public class SchedulerMasterTest extends AbstractTest {
       countDownLatch.await();
       jobInstanceCounter.await();
       List<JobInstance> jobIns = jobService.listAllJobInstances();
-      Assert.assertEquals(jobIns.size(), jobDefNumber);
+      assertThat(jobIns).hasSize(jobDefNumber);
     } finally {
       master.shutdown();
     }
   }
 
-  @Test(timeOut = 5000L)
+  @Test
+  @Timeout(5)
   public void testScheduleJobAtWhenMasterShutdown() throws Throwable {
     final CountDownLatch jobInScheduledCounter = new CountDownLatch(1);
     final CountDownLatch jobDefFinishedCounter = new CountDownLatch(1);
-    CloudSchedulerObserver observer = new AbstractCloudSchedulerObserver() {
-      @Override
-      public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-        jobInScheduledCounter.countDown();
-      }
+    CloudSchedulerObserver observer =
+        new AbstractCloudSchedulerObserver() {
+          @Override
+          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+            jobInScheduledCounter.countDown();
+          }
 
-      @Override
-      public void jobDefinitionCompleted(UUID id, Instant time) {
-        jobDefFinishedCounter.countDown();
-      }
-    };
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        threadPool, observer);
-    SchedulerMaster master2 = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory,
-        threadPool, observer);
+          @Override
+          public void jobDefinitionCompleted(UUID id, Instant time) {
+            jobDefFinishedCounter.countDown();
+          }
+        };
+    SchedulerMaster master =
+        new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, threadPool, observer);
+    SchedulerMaster master2 =
+        new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE, jobFactory, threadPool, observer);
 
     master.start();
     master2.start();
     try {
       Instant t = Instant.now().plus(Duration.ofSeconds(3));
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .startAt(t).build();
+      JobDefinition job = JobDefinition.newBuilder(TestJob.class).startAt(t).build();
       jobService.saveJobDefinition(job);
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
 
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(is).isEmpty();
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
       master.shutdown();
-      Assert.assertTrue(jobInScheduledCounter.await(3500L, TimeUnit.MILLISECONDS),
-          "Job instance should be scheduled within 3 seconds");
-      Assert.assertTrue(jobDefFinishedCounter.await(1000L, TimeUnit.MILLISECONDS),
-          "Job definition should finished.");
+      assertThat(jobInScheduledCounter.await(3500L, TimeUnit.MILLISECONDS))
+          .as("Job instance should be scheduled within 3 seconds")
+          .isTrue();
+      assertThat(jobDefFinishedCounter.await(1000L, TimeUnit.MILLISECONDS))
+          .as("Job definition should finished.")
+          .isTrue();
 
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.FINISHED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.FINISHED);
 
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
     } finally {
       master2.shutdown();
     }
   }
 
-  @Test(timeOut = 15000L)
+  @Test
+  @Timeout(15)
   public void testGlobalRepeatJobs() throws Throwable {
     int numberOfWorkers = 5;
     logger.info("Start five workers");
@@ -687,60 +742,67 @@ public class SchedulerMasterTest extends AbstractTest {
     for (int i = 0; i < numberOfWorkers; i++) {
       Node node = new Node();
       workerIds.add(node.getId());
-      fs.add(jobService.registerWorkerAsync(node).thenAccept(v ->
-          logger.info("Node: {} registered", node)));
+      fs.add(
+          jobService
+              .registerWorkerAsync(node)
+              .thenAccept(v -> logger.info("Node: {} registered", node)));
     }
     CountDownLatch countDownLatch = new CountDownLatch(1);
     CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
         .thenAccept(v -> countDownLatch.countDown());
     countDownLatch.await();
 
-    final AtomicReference<CountDownLatch> jobInScheduledCounter = new AtomicReference<>(
-        new CountDownLatch(1));
-    SchedulerMaster master = new SchedulerMaster(new Node(), zkUrl, Integer.MAX_VALUE,
-        jobFactory, threadPool,
-        new AbstractCloudSchedulerObserver() {
-          @Override
-          public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-            jobInScheduledCounter.get().countDown();
-          }
-        });
+    final AtomicReference<CountDownLatch> jobInScheduledCounter =
+        new AtomicReference<>(new CountDownLatch(1));
+    SchedulerMaster master =
+        new SchedulerMaster(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            jobFactory,
+            threadPool,
+            new AbstractCloudSchedulerObserver() {
+              @Override
+              public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
+                jobInScheduledCounter.get().countDown();
+              }
+            });
     logger.info("Start master");
     master.start();
     try {
       Instant t = Instant.now().plus(Duration.ofSeconds(3));
       logger.info("Create job definition");
-      JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-          .startAt(t)
-          .global()
-          .fixedDelay(Duration.ofSeconds(5))
-          .repeat(3)
-          .build();
+      JobDefinition job =
+          JobDefinition.newBuilder(TestJob.class)
+              .startAt(t)
+              .global()
+              .fixedDelay(Duration.ofSeconds(5))
+              .repeat(3)
+              .build();
       jobService.saveJobDefinition(job);
       logger.info("Make sure JobDefinition status is right.");
       JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(job.getId());
-      Assert.assertEquals(jobDefinitionStatus.getState(), JobDefinitionState.CREATED);
+      assertThat(jobDefinitionStatus.getState()).isEqualTo(JobDefinitionState.CREATED);
 
       logger.info("Make sure job instance not scheduled.");
       List<JobInstance> is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
-      Assert.assertNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(is).isEmpty();
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNull();
 
-      Assert.assertTrue(jobInScheduledCounter.get().await(3500L, TimeUnit.MILLISECONDS),
-          "Should scheduled within 3.5 seconds");
+      assertThat(jobInScheduledCounter.get().await(3500L, TimeUnit.MILLISECONDS))
+          .as("Should scheduled within 3.5 seconds")
+          .isTrue();
       jobInScheduledCounter.set(new CountDownLatch(1));
 
       logger.info("JobInstance should be scheduled now");
       jobDefinitionStatus = jobService.getJobStatusById(job.getId());
 
-      Assert.assertNotNull(jobDefinitionStatus.getLastScheduleTime());
+      assertThat(jobDefinitionStatus.getLastScheduleTime()).isNotNull();
 
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       JobInstance jobIn = is.iterator().next();
-      Assert.assertEquals(jobIn.getRunStatus().size(), 5);
+      assertThat(jobIn.getRunStatus()).hasSize(5);
 
       logger.info("Start process jobs.");
       for (UUID workerId : workerIds) {
@@ -753,22 +815,21 @@ public class SchedulerMasterTest extends AbstractTest {
       Thread.sleep(500L);
       logger.info("Make sure JobInstance cleaned up.");
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
+      assertThat(is).isEmpty();
 
-      Assert.assertFalse(jobInScheduledCounter.get().await(3000L, TimeUnit.MILLISECONDS),
-          "Shouldn't scheduled in 3 seconds");
+      assertThat(jobInScheduledCounter.get().await(3000L, TimeUnit.MILLISECONDS))
+          .as("Shouldn't scheduled in 3 seconds")
+          .isFalse();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertTrue(is.isEmpty());
+      assertThat(is).isEmpty();
 
-      Assert.assertTrue(jobInScheduledCounter.get().await(2000L, TimeUnit.MILLISECONDS),
-          "Should schedled after another 2 seconds");
+      assertThat(jobInScheduledCounter.get().await(2000L, TimeUnit.MILLISECONDS))
+          .as("Should schedled after another 2 seconds")
+          .isTrue();
       is = jobService.getJobInstancesByJobDef(job);
-      Assert.assertNotNull(is);
-      Assert.assertEquals(is.size(), 1);
+      assertThat(is).hasSize(1);
       jobIn = is.iterator().next();
-      Assert.assertEquals(jobIn.getRunStatus().size(), 5);
+      assertThat(jobIn.getRunStatus()).hasSize(5);
     } finally {
       master.shutdown();
     }

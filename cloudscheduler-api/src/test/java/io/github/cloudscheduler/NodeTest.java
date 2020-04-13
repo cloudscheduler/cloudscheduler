@@ -24,21 +24,20 @@
 
 package io.github.cloudscheduler;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * @author Wei Gao
- */
+import org.junit.jupiter.api.Test;
+
+/** @author Wei Gao */
 public class NodeTest {
   @Test
   public void testSerialize() {
     Node node1 = new Node();
     byte[] data = node1.getAsBytes();
     Node node2 = new Node(data);
-    Assert.assertNotSame(node1, node2);
-    Assert.assertEquals(node1.getId(), node2.getId());
-    Assert.assertEquals(node1.hashCode(), node2.hashCode());
-    Assert.assertEquals(node1, node2);
+    assertThat(node1).isNotSameAs(node2);
+    assertThat(node1.getId()).isEqualTo(node2.getId());
+    assertThat(node1.hashCode()).isEqualTo(node2.hashCode());
+    assertThat(node1).isEqualTo(node2);
   }
 }

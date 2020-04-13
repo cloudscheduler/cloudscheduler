@@ -33,175 +33,225 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A compose {@link CloudSchedulerObserver} implementation. This compose observer will
- * use a separate thread to dispatch event to a chain of observers.
+ * A compose {@link CloudSchedulerObserver} implementation. This compose observer will use a
+ * separate thread to dispatch event to a chain of observers.
  *
  * @author Wei Gao
  */
 class CompositeCloudSchedulerObserver implements CloudSchedulerObserver {
-  private static final Logger logger = LoggerFactory
-      .getLogger(CompositeCloudSchedulerObserver.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(CompositeCloudSchedulerObserver.class);
 
   private final List<CloudSchedulerObserver> observers;
   private final ExecutorService threadPool;
 
   CompositeCloudSchedulerObserver(List<CloudSchedulerObserver> observers) {
     this.observers = observers;
-    threadPool = Executors.newFixedThreadPool(1, r ->
-        new Thread(r, "CloudSchedulerObserver-deliver"));
+    threadPool =
+        Executors.newFixedThreadPool(1, r -> new Thread(r, "CloudSchedulerObserver-deliver"));
   }
 
   @Override
   public void masterNodeUp(UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.masterNodeUp(nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify master node up, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.masterNodeUp(nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify master node up, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void masterNodeDown(UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.masterNodeDown(nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify master node down, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.masterNodeDown(nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify master node down, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void workerNodeUp(UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.workerNodeUp(nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify worker node up, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.workerNodeUp(nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify worker node up, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void workerNodeDown(UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.workerNodeDown(nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify worker node down, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.workerNodeDown(nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify worker node down, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void workerNodeRemoved(UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.workerNodeRemoved(nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify worker node been removed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.workerNodeRemoved(nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify worker node been removed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobDefinitionPaused(UUID id, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobDefinitionPaused(id, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job definition been paused, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobDefinitionPaused(id, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job definition been paused, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobDefinitionResumed(UUID id, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobDefinitionResumed(id, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job definition been resumed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobDefinitionResumed(id, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job definition been resumed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobDefinitionCompleted(UUID id, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobDefinitionCompleted(id, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job definition been completed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobDefinitionCompleted(id, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job definition been completed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobDefinitionRemoved(UUID id, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobDefinitionRemoved(id, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job definition been removed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobDefinitionRemoved(id, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job definition been removed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobInstanceScheduled(jobDefId, jobInId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job instance been scheduled, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobInstanceScheduled(jobDefId, jobInId, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job instance been scheduled, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobInstanceStarted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobInstanceStarted(jobDefId, jobInId, nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job instance started, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobInstanceStarted(jobDefId, jobInId, nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify job instance started, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobInstanceCompleted(jobDefId, jobInId, nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job instance completed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobInstanceCompleted(jobDefId, jobInId, nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job instance completed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobInstanceFailed(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobInstanceFailed(jobDefId, jobInId, nodeId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job instance failed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobInstanceFailed(jobDefId, jobInId, nodeId, time);
+                  } catch (Throwable e) {
+                    logger.debug("Error happened when notify job instance failed, ignore it.", e);
+                  }
+                }));
   }
 
   @Override
   public void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time) {
-    threadPool.submit(() -> observers.forEach(observer -> {
-      try {
-        observer.jobInstanceRemoved(jobDefId, jobInId, time);
-      } catch (Throwable e) {
-        logger.debug("Error happened when notify job instance been removed, ignore it.", e);
-      }
-    }));
+    threadPool.submit(
+        () ->
+            observers.forEach(
+                observer -> {
+                  try {
+                    observer.jobInstanceRemoved(jobDefId, jobInId, time);
+                  } catch (Throwable e) {
+                    logger.debug(
+                        "Error happened when notify job instance been removed, ignore it.", e);
+                  }
+                }));
   }
 }

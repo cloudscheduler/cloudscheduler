@@ -33,9 +33,7 @@ import java.util.concurrent.ExecutionException;
  * @author Wei Gao
  */
 public interface AsyncService {
-  /**
-   * Synchronized shutdown, by default will call async shutdown and wait till done.
-   */
+  /** Synchronized shutdown, by default will call async shutdown and wait till done. */
   default void shutdown() {
     try {
       shutdownAsync().get();

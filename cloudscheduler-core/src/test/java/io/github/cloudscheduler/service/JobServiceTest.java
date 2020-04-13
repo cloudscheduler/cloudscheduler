@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.TestJob;
 import io.github.cloudscheduler.model.JobDefinition;
@@ -32,19 +34,15 @@ import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
 import io.github.cloudscheduler.model.JobRunStatus;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class JobServiceTest extends AbstractTest {
   private static final Logger logger = LoggerFactory.getLogger(JobServiceTest.class);
 
@@ -62,9 +60,9 @@ public class JobServiceTest extends AbstractTest {
     jobIds.add(job.getId());
 
     List<JobDefinition> jobs = jobService.listAllJobDefinitions();
-    Assert.assertNotNull(jobs);
-    Assert.assertEquals(jobs.size(), 3);
-    jobs.forEach(j -> Assert.assertTrue(jobIds.contains(j.getId())));
+    assertThat(jobs).hasSize(3);
+    assertThat(jobs.stream().map(JobDefinition::getId).collect(Collectors.toList()))
+        .hasSameElementsAs(jobIds);
   }
 
   @Test
@@ -82,10 +80,8 @@ public class JobServiceTest extends AbstractTest {
     jobs.add(job);
 
     List<JobDefinition> jobs1 = jobService.listJobDefinitionsByName("testJob");
-    Assert.assertNotNull(jobs1);
-    Assert.assertEquals(jobs1.size(), 2);
-    Assert.assertTrue(jobs.containsAll(jobs1));
-    Assert.assertTrue(jobs1.containsAll(jobs));
+    assertThat(jobs1).hasSize(2);
+    assertThat(jobs1).hasSameElementsAs(jobs);
   }
 
   @Test
@@ -102,9 +98,9 @@ public class JobServiceTest extends AbstractTest {
     jobInsIds.add(jobIns.getId());
 
     List<JobInstance> jobInstances = jobService.getJobInstancesByJobDef(jobDef);
-    Assert.assertNotNull(jobInstances);
-    Assert.assertEquals(jobInstances.size(), 2);
-    jobInstances.forEach(ji -> Assert.assertTrue(jobInsIds.contains(ji.getId())));
+    assertThat(jobInstances).hasSize(2);
+    assertThat(jobInstances.stream().map(JobInstance::getId).collect(Collectors.toList()))
+        .hasSameElementsAs(jobInsIds);
   }
 
   @Test
@@ -118,32 +114,32 @@ public class JobServiceTest extends AbstractTest {
     JobInstance jobIns = jobService.scheduleJobInstance(jobDef);
     logger.info("JobInstance with id: {} scheduled", jobIns.getId());
     JobDefinitionStatus jobDefinitionStatus = jobService.getJobStatusById(jobDef.getId());
-    Assert.assertNotNull(jobDefinitionStatus);
+    assertThat(jobDefinitionStatus).isNotNull();
     JobInstanceState state = jobDefinitionStatus.getJobInstanceState().get(jobIns.getId());
-    Assert.assertNotNull(state);
-    Assert.assertEquals(state, JobInstanceState.SCHEDULED);
+    assertThat(state).isNotNull();
+    assertThat(state).isEqualTo(JobInstanceState.SCHEDULED);
 
     jobService.startProcessJobInstance(jobIns.getId(), nodeId);
     logger.info("JobInstance started with node id: {}", nodeId);
 
     JobInstance ji = jobService.getJobInstanceById(jobIns.getId());
 
-    Assert.assertNotNull(ji);
-    Assert.assertTrue(ji.getRunStatus().keySet().contains(nodeId));
+    assertThat(ji).isNotNull();
+    assertThat(ji.getRunStatus().keySet()).contains(nodeId);
 
     JobRunStatus status = ji.getRunStatus().get(nodeId);
-    Assert.assertNotNull(status);
-    Assert.assertEquals(status.getState(), JobInstanceState.RUNNING);
+    assertThat(status).isNotNull();
+    assertThat(status.getState()).isEqualTo(JobInstanceState.RUNNING);
 
     jobService.completeJobInstance(jobIns.getId(), nodeId, JobInstanceState.FAILED);
     logger.info("JobInstance for nodeId: {} completed", nodeId);
     ji = jobService.getJobInstanceById(jobIns.getId());
 
-    Assert.assertNotNull(ji);
+    assertThat(ji).isNotNull();
 
     status = ji.getRunStatus().get(nodeId);
-    Assert.assertNotNull(status);
-    Assert.assertEquals(status.getState(), JobInstanceState.FAILED);
+    assertThat(status).isNotNull();
+    assertThat(status.getState()).isEqualTo(JobInstanceState.FAILED);
   }
 
   @Test
@@ -151,15 +147,13 @@ public class JobServiceTest extends AbstractTest {
     JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class).build();
     jobService.saveJobDefinition(jobDef);
 
-    UUID nodeId = UUID.randomUUID();
-
-    JobInstance jobIns = jobService.scheduleJobInstance(jobDef);
+    jobService.scheduleJobInstance(jobDef);
 
     jobService.pauseJob(jobDef.getId(), false);
     JobDefinition jd = jobService.getJobDefinitionById(jobDef.getId());
-    Assert.assertNotNull(jd);
+    assertThat(jd).isNotNull();
     JobDefinitionStatus status = jobService.getJobStatusById(jobDef.getId());
-    Assert.assertNotNull(status);
-    Assert.assertEquals(status.getState(), JobDefinitionState.PAUSED);
+    assertThat(status).isNotNull();
+    assertThat(status.getState()).isEqualTo(JobDefinitionState.PAUSED);
   }
 }

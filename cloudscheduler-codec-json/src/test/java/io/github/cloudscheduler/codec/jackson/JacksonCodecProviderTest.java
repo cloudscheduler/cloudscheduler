@@ -24,21 +24,21 @@
 
 package io.github.cloudscheduler.codec.jackson;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.codec.AbstractCodecProviderTest;
 import io.github.cloudscheduler.codec.EntityCodecProvider;
 import io.github.cloudscheduler.codec.EntityDecoder;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
-
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 public class JacksonCodecProviderTest extends AbstractCodecProviderTest {
-  private final static EntityCodecProvider codecProvider = new JacksonCodecProvider();
+  private static final EntityCodecProvider codecProvider = new JacksonCodecProvider();
 
   @Override
   protected EntityCodecProvider getCodecProvider() {
@@ -47,34 +47,38 @@ public class JacksonCodecProviderTest extends AbstractCodecProviderTest {
 
   @Test
   public void testDecodeJobDefinition() throws IOException {
-    String jsonStr = "{\"id\": \"cd8c9c85-760c-4511-a5da-4ef537d0da77\",\"job_class\":\"io.github.cloudscheduler.codec.AbstractCodecProviderTest$TestJob\"}";
+    String jsonStr =
+        "{\"id\": \"cd8c9c85-760c-4511-a5da-4ef537d0da77\",\"job_class\":\"io.github.cloudscheduler.codec.AbstractCodecProviderTest$TestJob\"}";
     EntityDecoder<JobDefinition> decoder;
     decoder = getCodecProvider().getEntityDecoder(JobDefinition.class);
-    Assert.assertNotNull(decoder);
-    JobDefinition job = decoder.decode(jsonStr.getBytes("UTF-8"));
-    Assert.assertNotNull(job);
-    Assert.assertEquals(job.getId(), UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
-    Assert.assertEquals(job.getJobClass(), TestJob.class);
+    assertThat(decoder).isNotNull();
+    JobDefinition job = decoder.decode(jsonStr.getBytes(StandardCharsets.UTF_8));
+    assertThat(job).isNotNull();
+    assertThat(job.getId()).isEqualTo(UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
+    assertThat(job.getJobClass()).isEqualTo(TestJob.class);
   }
 
   @Test
   public void testDecodeJobDefinitionStatus() throws IOException {
     String jsonStr = "{\"jobDefId\": \"cd8c9c85-760c-4511-a5da-4ef537d0da77\"}";
-    EntityDecoder<JobDefinitionStatus> decoder = getCodecProvider().getEntityDecoder(JobDefinitionStatus.class);
-    Assert.assertNotNull(decoder);
-    JobDefinitionStatus status = decoder.decode(jsonStr.getBytes("UTF-8"));
-    Assert.assertNotNull(status);
-    Assert.assertEquals(status.getId(), UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
+    EntityDecoder<JobDefinitionStatus> decoder =
+        getCodecProvider().getEntityDecoder(JobDefinitionStatus.class);
+    assertThat(decoder).isNotNull();
+    JobDefinitionStatus status = decoder.decode(jsonStr.getBytes(StandardCharsets.UTF_8));
+    assertThat(status).isNotNull();
+    assertThat(status.getId()).isEqualTo(UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
   }
 
   @Test
   public void testDecodeJobInstance() throws IOException {
-    String jsonStr = "{\"id\": \"cd8c9c85-760c-4511-a5da-4ef537d0da77\",\"definition_id\":\"71275b60-c38c-4afc-a4f2-ed49e30de19d\"}";
+    String jsonStr =
+        "{\"id\": \"cd8c9c85-760c-4511-a5da-4ef537d0da77\",\"definition_id\":\"71275b60-c38c-4afc-a4f2-ed49e30de19d\"}";
     EntityDecoder<JobInstance> decoder = getCodecProvider().getEntityDecoder(JobInstance.class);
-    Assert.assertNotNull(decoder);
-    JobInstance instance = decoder.decode(jsonStr.getBytes("UTF-8"));
-    Assert.assertNotNull(instance);
-    Assert.assertEquals(instance.getId(), UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
-    Assert.assertEquals(instance.getJobDefId(), UUID.fromString("71275b60-c38c-4afc-a4f2-ed49e30de19d"));
+    assertThat(decoder).isNotNull();
+    JobInstance instance = decoder.decode(jsonStr.getBytes(StandardCharsets.UTF_8));
+    assertThat(instance).isNotNull();
+    assertThat(instance.getId()).isEqualTo(UUID.fromString("cd8c9c85-760c-4511-a5da-4ef537d0da77"));
+    assertThat(instance.getJobDefId())
+        .isEqualTo(UUID.fromString("71275b60-c38c-4afc-a4f2-ed49e30de19d"));
   }
 }

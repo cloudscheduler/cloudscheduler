@@ -41,7 +41,7 @@ public interface Scheduler {
    * Run a job at given time.
    *
    * @param jobClass Job class
-   * @param time     run time
+   * @param time run time
    * @return job definition
    */
   JobDefinition runOnce(Class<? extends Job> jobClass, Instant time);
@@ -65,7 +65,7 @@ public interface Scheduler {
   /**
    * Pause a job.
    *
-   * @param id           JobDefinition id
+   * @param id JobDefinition id
    * @param mayInterrupt interrupt job if it's running
    * @return job definition
    */
@@ -74,7 +74,7 @@ public interface Scheduler {
   /**
    * Resume a paused job.
    *
-   * @param id           JobDefinition id
+   * @param id JobDefinition id
    * @return job definition
    */
   JobDefinition resume(UUID id);

@@ -29,13 +29,13 @@ import io.github.cloudscheduler.model.JobDefinitionStatus;
 import java.time.Instant;
 
 /**
- * <p>A job schedule calculator. Been used to calculate next job start time.
- * This will be used for customized schedule ScheduleMode</p>
+ * A job schedule calculator. Been used to calculate next job start time. This will be used for
+ * customized schedule ScheduleMode
  *
- * <p>The implementation of this interface should be stateless/singleton.</p>
+ * <p>The implementation of this interface should be stateless/singleton.
  *
- * <p>The JobScheduleCalculator will be run in customer provided thread pool to avoid
- * bad implementation holding cloud scheduler thread and block all other logic.</p>
+ * <p>The JobScheduleCalculator will be run in customer provided thread pool to avoid bad
+ * implementation holding cloud scheduler thread and block all other logic.
  */
 public interface JobScheduleCalculator {
 
@@ -43,8 +43,8 @@ public interface JobScheduleCalculator {
    * Calculate a job definition next runtime.
    *
    * @param jobDefinition JobDefinition object
-   * @param status        JobDefinition status
-   * @return Next run time. <tt>null</tt> if job should stop from been scheduled.
+   * @param status JobDefinition status
+   * @return Next run time. <code>null</code> if job should stop from been scheduled.
    */
   Instant calculateNextRunTime(JobDefinition jobDefinition, JobDefinitionStatus status);
 }

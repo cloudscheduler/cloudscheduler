@@ -57,24 +57,21 @@ public class SchedulerImpl implements Scheduler {
   }
 
   @Override
-  public JobDefinition runOnce(Class<? extends Job> jobClass, Instant time) throws JobException {
-    JobDefinition jobDef = JobDefinition.newBuilder(jobClass)
-        .startAt(time)
-        .build();
+  public JobDefinition runOnce(Class<? extends Job> jobClass, Instant time) {
+    JobDefinition jobDef = JobDefinition.newBuilder(jobClass).startAt(time).build();
     schedule(jobDef);
     return jobDef;
   }
 
   @Override
-  public JobDefinition runNow(Class<? extends Job> jobClass) throws JobException {
-    JobDefinition jobDef = JobDefinition.newBuilder(jobClass)
-        .build();
+  public JobDefinition runNow(Class<? extends Job> jobClass) {
+    JobDefinition jobDef = JobDefinition.newBuilder(jobClass).build();
     schedule(jobDef);
     return jobDef;
   }
 
   @Override
-  public void schedule(JobDefinition job) throws JobException {
+  public void schedule(JobDefinition job) {
     try {
       jobService.saveJobDefinition(job);
     } catch (ExecutionException e) {
@@ -91,7 +88,7 @@ public class SchedulerImpl implements Scheduler {
   }
 
   @Override
-  public JobDefinition pause(UUID id, boolean mayInterrupt) throws JobException {
+  public JobDefinition pause(UUID id, boolean mayInterrupt) {
     try {
       return jobService.pauseJob(id, mayInterrupt);
     } catch (ExecutionException e) {
@@ -108,7 +105,7 @@ public class SchedulerImpl implements Scheduler {
   }
 
   @Override
-  public JobDefinition resume(UUID id) throws JobException {
+  public JobDefinition resume(UUID id) {
     try {
       return jobService.resumeJob(id);
     } catch (ExecutionException e) {
@@ -178,8 +175,10 @@ public class SchedulerImpl implements Scheduler {
   @Override
   public JobDefinition delete(UUID id) {
     try {
-      return jobService.getJobDefinitionByIdAsync(id).thenCompose(job ->
-          jobService.deleteJobDefinitionAsync(job).thenApply(v -> job)).get();
+      return jobService
+          .getJobDefinitionByIdAsync(id)
+          .thenCompose(job -> jobService.deleteJobDefinitionAsync(job).thenApply(v -> job))
+          .get();
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause instanceof RuntimeException) {

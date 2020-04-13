@@ -27,63 +27,47 @@ package io.github.cloudscheduler;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * An abstract implementation of CloudSchedulerObserver.
- */
+/** An abstract implementation of CloudSchedulerObserver. */
 public abstract class AbstractCloudSchedulerObserver implements CloudSchedulerObserver {
   @Override
-  public void masterNodeUp(UUID nodeId, Instant time) {
-  }
+  public void masterNodeUp(UUID nodeId, Instant time) {}
 
   @Override
-  public void masterNodeDown(UUID nodeId, Instant time) {
-  }
+  public void masterNodeDown(UUID nodeId, Instant time) {}
 
   @Override
-  public void workerNodeUp(UUID nodeId, Instant time) {
-  }
+  public void workerNodeUp(UUID nodeId, Instant time) {}
 
   @Override
-  public void workerNodeDown(UUID nodeId, Instant time) {
-  }
+  public void workerNodeDown(UUID nodeId, Instant time) {}
 
   @Override
-  public void workerNodeRemoved(UUID nodeId, Instant time) {
-  }
+  public void workerNodeRemoved(UUID nodeId, Instant time) {}
 
   @Override
-  public void jobDefinitionPaused(UUID id, Instant time) {
-  }
+  public void jobDefinitionPaused(UUID id, Instant time) {}
 
   @Override
-  public void jobDefinitionResumed(UUID id, Instant time) {
-  }
+  public void jobDefinitionResumed(UUID id, Instant time) {}
 
   @Override
-  public void jobDefinitionRemoved(UUID id, Instant time) {
-  }
+  public void jobDefinitionRemoved(UUID id, Instant time) {}
 
   @Override
-  public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {
-  }
+  public void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time) {}
 
   @Override
-  public void jobInstanceStarted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-  }
+  public void jobInstanceStarted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {}
 
   @Override
-  public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-  }
+  public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {}
 
   @Override
-  public void jobInstanceFailed(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-  }
+  public void jobInstanceFailed(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {}
 
   @Override
-  public void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time) {
-  }
+  public void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time) {}
 
   @Override
-  public void jobDefinitionCompleted(UUID id, Instant time) {
-  }
+  public void jobDefinitionCompleted(UUID id, Instant time) {}
 }

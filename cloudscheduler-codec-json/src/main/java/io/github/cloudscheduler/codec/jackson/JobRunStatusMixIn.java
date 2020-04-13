@@ -35,8 +35,7 @@ import java.util.UUID;
  * @author Wei Gao
  */
 abstract class JobRunStatusMixIn {
-  JobRunStatusMixIn(@JsonProperty("node_id") UUID nodeId) {
-  }
+  JobRunStatusMixIn(@JsonProperty("node_id") UUID nodeId) {}
 
   @JsonProperty("node_id")
   abstract UUID getNodeId();

@@ -24,19 +24,19 @@
 
 package io.github.cloudscheduler;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
-
 import io.github.cloudscheduler.model.ScheduleMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 public class SchedulerImplTest extends AbstractTest {
   @Test
@@ -44,15 +44,15 @@ public class SchedulerImplTest extends AbstractTest {
     Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
 
     JobDefinition jobDef = scheduler.runNow(TestJob.class);
-    Assert.assertNotNull(jobDef);
-    Assert.assertEquals(jobDef.getMode(), ScheduleMode.START_NOW);
-    Assert.assertFalse(jobDef.isGlobal());
-    Assert.assertNull(jobDef.getCron());
-    Assert.assertNull(jobDef.getEndTime());
-    Assert.assertNull(jobDef.getStartTime());
-    Assert.assertNull(jobDef.getDelay());
-    Assert.assertNull(jobDef.getRate());
-    Assert.assertNull(jobDef.getRepeat());
+    assertThat(jobDef).isNotNull();
+    assertThat(jobDef.getMode()).isEqualTo(ScheduleMode.START_NOW);
+    assertThat(jobDef.isGlobal()).isFalse();
+    assertThat(jobDef.getCron()).isNull();
+    assertThat(jobDef.getEndTime()).isNull();
+    assertThat(jobDef.getStartTime()).isNull();
+    assertThat(jobDef.getDelay()).isNull();
+    assertThat(jobDef.getRate()).isNull();
+    assertThat(jobDef.getRepeat()).isNull();
   }
 
   @Test
@@ -61,15 +61,15 @@ public class SchedulerImplTest extends AbstractTest {
 
     Instant time = Instant.now().plusSeconds(10);
     JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
-    Assert.assertNotNull(jobDef);
-    Assert.assertEquals(jobDef.getMode(), ScheduleMode.START_AT);
-    Assert.assertFalse(jobDef.isGlobal());
-    Assert.assertNull(jobDef.getCron());
-    Assert.assertNull(jobDef.getEndTime());
-    Assert.assertEquals(jobDef.getStartTime(), time);
-    Assert.assertNull(jobDef.getDelay());
-    Assert.assertNull(jobDef.getRate());
-    Assert.assertNull(jobDef.getRepeat());
+    assertThat(jobDef).isNotNull();
+    assertThat(jobDef.getMode()).isEqualTo(ScheduleMode.START_AT);
+    assertThat(jobDef.isGlobal()).isFalse();
+    assertThat(jobDef.getCron()).isNull();
+    assertThat(jobDef.getEndTime()).isNull();
+    assertThat(jobDef.getStartTime()).isEqualTo(time);
+    assertThat(jobDef.getDelay()).isNull();
+    assertThat(jobDef.getRate()).isNull();
+    assertThat(jobDef.getRepeat()).isNull();
   }
 
   @Test
@@ -78,29 +78,29 @@ public class SchedulerImplTest extends AbstractTest {
 
     Instant stime = Instant.now().plusSeconds(10);
     Instant etime = stime.plus(1, ChronoUnit.DAYS);
-    JobDefinition jobDef = JobDefinition.newBuilder(TestJob.class)
-        .startAt(stime)
-        .endAt(etime)
-        .fixedDelay(Duration.ofMinutes(60))
-        .repeat(10)
-        .build();
+    JobDefinition jobDef =
+        JobDefinition.newBuilder(TestJob.class)
+            .startAt(stime)
+            .endAt(etime)
+            .fixedDelay(Duration.ofMinutes(60))
+            .repeat(10)
+            .build();
     scheduler.schedule(jobDef);
 
     String name = jobDef.getName();
 
     List<JobDefinition> jobs = scheduler.listJobDefinitionsByName(name);
-    Assert.assertNotNull(jobs);
-    Assert.assertEquals(jobs.size(), 1);
+    assertThat(jobs).hasSize(1);
     JobDefinition job = jobs.iterator().next();
-    Assert.assertEquals(job.getMode(), ScheduleMode.START_AT);
-    Assert.assertFalse(job.isGlobal());
-    Assert.assertNull(job.getCron());
-    Assert.assertEquals(job.getEndTime(), etime);
-    Assert.assertEquals(job.getStartTime(), stime);
-    Assert.assertNull(job.getRate());
-    Assert.assertEquals(job.getDelay(), Duration.ofMinutes(60));
-    Assert.assertNotNull(job.getRepeat());
-    Assert.assertEquals(job.getRepeat().intValue(), 10);
+    assertThat(job.getMode()).isEqualTo(ScheduleMode.START_AT);
+    assertThat(job.isGlobal()).isFalse();
+    assertThat(job.getCron()).isNull();
+    assertThat(job.getEndTime()).isEqualTo(etime);
+    assertThat(job.getStartTime()).isEqualTo(stime);
+    assertThat(job.getRate()).isNull();
+    assertThat(job.getDelay()).isEqualTo(Duration.ofMinutes(60));
+    assertThat(job.getRepeat()).isNotNull();
+    assertThat(job.getRepeat().intValue()).isEqualTo(10);
   }
 
   @Test
@@ -113,16 +113,20 @@ public class SchedulerImplTest extends AbstractTest {
     testPauseJob(true);
   }
 
-  @Test(expectedExceptions = JobException.class)
+  @Test
   public void testPauseJobTwice() {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
+    assertThatExceptionOfType(JobException.class)
+        .isThrownBy(
+            () -> {
+              Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
 
-    Instant time = Instant.now().plusSeconds(10);
-    JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
-    Assert.assertNotNull(jobDef);
+              Instant time = Instant.now().plusSeconds(10);
+              JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
+              assertThat(jobDef).isNotNull();
 
-    scheduler.pause(jobDef.getId(), false);
-    scheduler.pause(jobDef.getId(), true);
+              scheduler.pause(jobDef.getId(), false);
+              scheduler.pause(jobDef.getId(), true);
+            });
   }
 
   @Test
@@ -131,13 +135,12 @@ public class SchedulerImplTest extends AbstractTest {
 
     Instant time = Instant.now().plusSeconds(10);
     JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
-    Assert.assertNotNull(jobDef);
+    assertThat(jobDef).isNotNull();
 
     scheduler.delete(jobDef.getId());
 
     List<JobDefinition> jobs = scheduler.listJobDefinitionsByName(jobDef.getName());
-    Assert.assertNotNull(jobs);
-    Assert.assertTrue(jobs.isEmpty());
+    assertThat(jobs).isEmpty();
   }
 
   private void testPauseJob(boolean interrupt) {
@@ -145,21 +148,21 @@ public class SchedulerImplTest extends AbstractTest {
 
     Instant time = Instant.now().plusSeconds(10);
     JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
-    Assert.assertNotNull(jobDef);
+    assertThat(jobDef).isNotNull();
 
     JobDefinition job = scheduler.pause(jobDef.getId(), interrupt);
 
-    Assert.assertNotNull(job);
+    assertThat(job).isNotNull();
     Map<JobDefinition, JobDefinitionStatus> jobstats = scheduler.listJobDefinitionsWithStatus();
     JobDefinitionStatus status = null;
-    for(Map.Entry<JobDefinition, JobDefinitionStatus> entry : jobstats.entrySet()) {
+    for (Map.Entry<JobDefinition, JobDefinitionStatus> entry : jobstats.entrySet()) {
       JobDefinition j = entry.getKey();
       if (j.getId().equals(job.getId())) {
         status = entry.getValue();
         break;
       }
     }
-    Assert.assertNotNull(status);
-    Assert.assertEquals(status.getState(), JobDefinitionState.PAUSED);
+    assertThat(status).isNotNull();
+    assertThat(status.getState()).isEqualTo(JobDefinitionState.PAUSED);
   }
 }

@@ -61,18 +61,20 @@ public class SimpleJobFactory implements JobFactory {
   public JobScheduleCalculator createJobScheduleCalculator(
       Class<? extends JobScheduleCalculator> calculatorClass) throws Throwable {
     try {
-      return calcuatorMap.computeIfAbsent(calculatorClass, key -> {
-        try {
-          Constructor<? extends JobScheduleCalculator> constructor = calculatorClass
-              .getConstructor();
-          return constructor.newInstance();
-        } catch (NoSuchMethodException
-            | IllegalAccessException
-            | InstantiationException
-            | InvocationTargetException exp) {
-          throw new CompletionException(exp);
-        }
-      });
+      return calcuatorMap.computeIfAbsent(
+          calculatorClass,
+          key -> {
+            try {
+              Constructor<? extends JobScheduleCalculator> constructor =
+                  calculatorClass.getConstructor();
+              return constructor.newInstance();
+            } catch (NoSuchMethodException
+                | IllegalAccessException
+                | InstantiationException
+                | InvocationTargetException exp) {
+              throw new CompletionException(exp);
+            }
+          });
     } catch (CompletionException exp) {
       throw exp.getCause();
     }

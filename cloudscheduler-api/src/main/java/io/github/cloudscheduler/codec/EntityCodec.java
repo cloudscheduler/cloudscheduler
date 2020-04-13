@@ -29,5 +29,4 @@ package io.github.cloudscheduler.codec;
  *
  * @author Wei Gao
  */
-public interface EntityCodec<T> extends EntityEncoder<T>, EntityDecoder<T> {
-}
+public interface EntityCodec<T> extends EntityEncoder<T>, EntityDecoder<T> {}

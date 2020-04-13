@@ -24,48 +24,46 @@
 
 package io.github.cloudscheduler.spring;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.CloudSchedulerManager;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.service.JobServiceImpl;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.PropertySource;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class SpringJobFactoryTest {
   private TestingServer zkTestServer;
   private ZooKeeper zooKeeper;
   private JobService jobService;
-  private ExecutorService threadPool;
+  private static ExecutorService threadPool;
 
-  @BeforeClass
-  public void setup() {
+  @BeforeAll
+  public static void setup() {
     AtomicInteger threadCounter = new AtomicInteger(0);
-    threadPool = Executors.newCachedThreadPool(r ->
-        new Thread(r, "TestThread-" + threadCounter.incrementAndGet()));
+    threadPool =
+        Executors.newCachedThreadPool(
+            r -> new Thread(r, "TestThread-" + threadCounter.incrementAndGet()));
   }
 
-  @AfterClass
-  public void teardown() {
+  @AfterAll
+  public static void teardown() {
     if (threadPool != null) {
       threadPool.shutdown();
     }
@@ -74,21 +72,21 @@ public class SpringJobFactoryTest {
   @Test
   public void testCreateNewJob() throws Throwable {
     zkTestServer = new TestingServer();
-    zooKeeper = ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE).get();
+    zooKeeper =
+        ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE).get();
     jobService = new JobServiceImpl(zooKeeper);
     AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
-    ctx.getEnvironment().getPropertySources()
+    ctx.getEnvironment()
+        .getPropertySources()
         .addLast(new ZooKeeperPropertySource(zkTestServer.getConnectString()));
     ctx.register(Config.class);
     ctx.refresh();
     ctx.start();
     try {
-      JobDefinition jobDefinition = JobDefinition.newBuilder(TestJob.class)
-          .runNow()
-          .build();
+      JobDefinition jobDefinition = JobDefinition.newBuilder(TestJob.class).runNow().build();
       jobService.saveJobDefinition(jobDefinition);
       TestJob job = ctx.getBean(TestJob.class);
-      Assert.assertTrue(job.waitDown(1000L));
+      assertThat(job.waitDown(1000L)).isTrue();
     } finally {
       ctx.close();
       try {
@@ -131,8 +129,8 @@ public class SpringJobFactoryTest {
     }
 
     @Override
-    public Object getProperty(String s) {
-      if ("myZooKeeperUrl".equals(s)) {
+    public Object getProperty(String name) {
+      if ("myZooKeeperUrl".equals(name)) {
         return zkUrl;
       }
       return null;

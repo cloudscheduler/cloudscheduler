@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.worker;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.AbstractCloudSchedulerObserver;
 import io.github.cloudscheduler.AbstractTest;
 import io.github.cloudscheduler.AsyncService;
@@ -34,7 +36,6 @@ import io.github.cloudscheduler.SimpleJobFactory;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -43,15 +44,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
-
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class SchedulerWorkerTest extends AbstractTest {
   private static final Logger logger = LoggerFactory.getLogger(SchedulerWorkerTest.class);
   private final JobFactory jobFactory = new SimpleJobFactory();
@@ -59,78 +57,82 @@ public class SchedulerWorkerTest extends AbstractTest {
   private static final ConcurrentMap<String, CountDownLatch> counters = new ConcurrentHashMap<>();
   private static final String TEST_NAME = "name";
 
-  @Test(timeOut = 2000L)
+  @Test
+  @Timeout(2)
   public void testBasicRunJobInstance() throws Throwable {
     String name = "testBasicRunJobInstance";
     CountDownLatch counter = counters.computeIfAbsent(name, (key) -> new CountDownLatch(1));
-    SchedulerWorker worker = new SchedulerWorker(new Node(), zkUrl,
-        Integer.MAX_VALUE, threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
-    });
+    SchedulerWorker worker =
+        new SchedulerWorker(
+            new Node(),
+            zkUrl,
+            Integer.MAX_VALUE,
+            threadPool,
+            jobFactory,
+            new AbstractCloudSchedulerObserver() {});
     worker.start();
     try {
-      JobDefinition jobDef = JobDefinition.newBuilder(LocalTestJob.class)
-          .jobData(TEST_NAME, name)
-          .build();
+      JobDefinition jobDef =
+          JobDefinition.newBuilder(LocalTestJob.class).jobData(TEST_NAME, name).build();
       jobService.saveJobDefinition(jobDef);
       jobService.scheduleJobInstance(jobDef);
       counter.await();
       Thread.sleep(100L);
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(jobDef);
 
-      Assert.assertNotNull(jis);
-      Assert.assertEquals(jis.size(), 1);
+      assertThat(jis).hasSize(1);
       JobInstance ji = jis.iterator().next();
-      Assert.assertTrue(ji.getJobState().isComplete(false));
+      assertThat(ji.getJobState().isComplete(false)).isTrue();
     } finally {
       worker.shutdown();
     }
   }
 
-  @Test(timeOut = 4000L)
+  @Test
+  @Timeout(4)
   public void testTwoWorkerNode() throws Throwable {
     String name = "testTwoWorkerNode";
     CountDownLatch counter = counters.computeIfAbsent(name, (key) -> new CountDownLatch(1));
     Node node1 = new Node();
     final CountDownLatch jobInCompleteCouter = new CountDownLatch(1);
-    CloudSchedulerObserver observer = new AbstractCloudSchedulerObserver() {
-      @Override
-      public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-        jobInCompleteCouter.countDown();
-      }
-    };
-    SchedulerWorker worker1 = new SchedulerWorker(node1, zkUrl,
-        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    CloudSchedulerObserver observer =
+        new AbstractCloudSchedulerObserver() {
+          @Override
+          public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
+            jobInCompleteCouter.countDown();
+          }
+        };
+    SchedulerWorker worker1 =
+        new SchedulerWorker(node1, zkUrl, Integer.MAX_VALUE, threadPool, jobFactory, observer);
     Node node2 = new Node();
-    SchedulerWorker worker2 = new SchedulerWorker(node2, zkUrl,
-        Integer.MAX_VALUE, threadPool, jobFactory, observer);
+    SchedulerWorker worker2 =
+        new SchedulerWorker(node2, zkUrl, Integer.MAX_VALUE, threadPool, jobFactory, observer);
 
     worker1.start();
     worker2.start();
     try {
-      JobDefinition jobDef = JobDefinition.newBuilder(LocalTestJob.class)
-          .jobData(TEST_NAME, name)
-          .build();
+      JobDefinition jobDef =
+          JobDefinition.newBuilder(LocalTestJob.class).jobData(TEST_NAME, name).build();
       jobService.saveJobDefinition(jobDef);
       jobService.scheduleJobInstance(jobDef);
       counter.await();
       jobInCompleteCouter.await();
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(jobDef);
-      Assert.assertNotNull(jis);
-      Assert.assertEquals(jis.size(), 1);
+      assertThat(jis).hasSize(1);
       JobInstance ji = jis.iterator().next();
-      Assert.assertTrue(ji.getJobState().isComplete(false));
+      assertThat(ji.getJobState().isComplete(false)).isTrue();
 
       JobDefinitionStatus status = jobService.getJobStatusById(jobDef.getId());
 
-      Assert.assertEquals(status.getRunCount(), 1);
+      assertThat(status.getRunCount()).isEqualTo(1);
 
       jobService.deleteJobInstance(ji.getId());
       Thread.sleep(100L);
 
       JobInstanceProcessor processor = worker1.getJobProcessorById(ji.getId());
-      Assert.assertNull(processor);
+      assertThat(processor).isNull();
       processor = worker2.getJobProcessorById(ji.getId());
-      Assert.assertNull(processor);
+      assertThat(processor).isNull();
 
       logger.trace("Test done, shutdown two worker nodes.");
     } finally {
@@ -139,29 +141,37 @@ public class SchedulerWorkerTest extends AbstractTest {
     }
   }
 
-
-  @Test(timeOut = 20000L)
+  @Test
+  @Timeout(20)
   public void testMultipleWorkerNodeGlobalJob() throws Throwable {
     int numberOfWorkers = 50;
     String name = "testMultipleWorkerNodeGlobalJob";
-    CountDownLatch counter = counters.computeIfAbsent(name, (key) -> new CountDownLatch(numberOfWorkers));
+    CountDownLatch counter =
+        counters.computeIfAbsent(name, (key) -> new CountDownLatch(numberOfWorkers));
     Map<Node, SchedulerWorker> workers = new HashMap<>();
     final CountDownLatch workerUpCounter = new CountDownLatch(numberOfWorkers);
     final CountDownLatch jobInCompleteCounter = new CountDownLatch(numberOfWorkers);
     for (int i = 0; i < numberOfWorkers; i++) {
       Node node = new Node();
-      SchedulerWorker worker = new SchedulerWorker(node, zkUrl,
-          Integer.MAX_VALUE, threadPool, jobFactory, new AbstractCloudSchedulerObserver() {
-        @Override
-        public void workerNodeUp(UUID nodeId, Instant time) {
-          workerUpCounter.countDown();
-        }
+      SchedulerWorker worker =
+          new SchedulerWorker(
+              node,
+              zkUrl,
+              Integer.MAX_VALUE,
+              threadPool,
+              jobFactory,
+              new AbstractCloudSchedulerObserver() {
+                @Override
+                public void workerNodeUp(UUID nodeId, Instant time) {
+                  workerUpCounter.countDown();
+                }
 
-        @Override
-        public void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-          jobInCompleteCounter.countDown();
-        }
-      });
+                @Override
+                public void jobInstanceCompleted(
+                    UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
+                  jobInCompleteCounter.countDown();
+                }
+              });
       workers.put(node, worker);
       worker.start();
     }
@@ -169,10 +179,8 @@ public class SchedulerWorkerTest extends AbstractTest {
     workerUpCounter.await();
 
     try {
-      JobDefinition jobDef = JobDefinition.newBuilder(LocalTestJob.class)
-          .jobData(TEST_NAME, name)
-          .global()
-          .build();
+      JobDefinition jobDef =
+          JobDefinition.newBuilder(LocalTestJob.class).jobData(TEST_NAME, name).global().build();
       jobService.saveJobDefinition(jobDef);
       logger.trace("Global job saved.");
       JobInstance instance = jobService.scheduleJobInstance(jobDef);
@@ -181,22 +189,24 @@ public class SchedulerWorkerTest extends AbstractTest {
       jobInCompleteCounter.await();
       logger.info("Checking JobInstance status");
       List<JobInstance> jis = jobService.getJobInstancesByJobDef(jobDef);
-      Assert.assertNotNull(jis);
-      Assert.assertEquals(jis.size(), 1);
+      assertThat(jis).hasSize(1);
       JobInstance ji = jis.iterator().next();
-      Assert.assertTrue(ji.getJobState().isComplete(true));
+      assertThat(ji.getJobState().isComplete(true)).isTrue();
 
       JobDefinitionStatus status = jobService.getJobStatusById(jobDef.getId());
 
-      Assert.assertEquals(status.getRunCount(), 1);
+      assertThat(status.getRunCount()).isEqualTo(1);
 
       jobService.deleteJobInstance(ji.getId());
       Thread.sleep(100L);
 
-      workers.values().forEach(worker -> {
-        JobInstanceProcessor processor = worker.getJobProcessorById(ji.getId());
-        Assert.assertNull(processor);
-      });
+      workers
+          .values()
+          .forEach(
+              worker -> {
+                JobInstanceProcessor processor = worker.getJobProcessorById(ji.getId());
+                assertThat(processor).isNull();
+              });
     } finally {
       workers.values().forEach(AsyncService::shutdown);
     }

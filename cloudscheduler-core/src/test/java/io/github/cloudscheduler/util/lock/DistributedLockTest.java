@@ -24,8 +24,9 @@
 
 package io.github.cloudscheduler.util.lock;
 
-import io.github.cloudscheduler.util.ZooKeeperUtils;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.cloudscheduler.util.ZooKeeperUtils;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -38,35 +39,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class DistributedLockTest {
-  private final static Logger logger = LoggerFactory.getLogger(DistributedLockTest.class);
-  private final static String LOCK_FOLDER = "/locks";
+  private static final Logger logger = LoggerFactory.getLogger(DistributedLockTest.class);
+  private static final String LOCK_FOLDER = "/locks";
 
-  private TestingServer zkTestServer;
-  private ExecutorService threadPool;
+  private static TestingServer zkTestServer;
+  private static ExecutorService threadPool;
 
-  @BeforeClass
-  public void init() throws Exception {
+  @BeforeAll
+  public static void init() throws Exception {
     logger.info("Starting zookeeper");
     AtomicInteger threadCounter = new AtomicInteger(0);
-    threadPool = Executors.newCachedThreadPool(r -> {
-      Thread t = new Thread(r);
-      t.setName("worker-" + threadCounter.incrementAndGet());
-      return t;
-    });
+    threadPool =
+        Executors.newCachedThreadPool(
+            r -> {
+              Thread t = new Thread(r);
+              t.setName("worker-" + threadCounter.incrementAndGet());
+              return t;
+            });
     zkTestServer = new TestingServer();
   }
 
@@ -75,16 +74,20 @@ public class DistributedLockTest {
     String zkUrl = zkTestServer.getConnectString();
     UUID id = UUID.randomUUID();
     AtomicBoolean worked = new AtomicBoolean(false);
-    doWithLock(id, zkUrl, "testLock", () -> {
-      try {
-        Thread.sleep(2000L);
-      } catch (InterruptedException e) {
-        logger.warn("Interrupted", e);
-      }
-      worked.set(true);
-    });
+    doWithLock(
+        id,
+        zkUrl,
+        "testLock",
+        () -> {
+          try {
+            Thread.sleep(2000L);
+          } catch (InterruptedException e) {
+            logger.warn("Interrupted", e);
+          }
+          worked.set(true);
+        });
     logger.info("Check if it's acquired.");
-    Assert.assertTrue(worked.get(), "Lock never acquired.");
+    assertThat(worked.get()).as("Lock never acquired.").isTrue();
   }
 
   @Test
@@ -93,7 +96,7 @@ public class DistributedLockTest {
     UUID id = UUID.randomUUID();
     AtomicBoolean worked = new AtomicBoolean(false);
     doWithLock(id, zkUrl, null, () -> worked.set(true));
-    Assert.assertTrue(worked.get(), "Lock never acquired.");
+    assertThat(worked.get()).as("Lock never acquired.").isTrue();
   }
 
   @Test
@@ -109,53 +112,63 @@ public class DistributedLockTest {
 
     AtomicBoolean l1InLock = new AtomicBoolean(false);
     AtomicBoolean l2InLock = new AtomicBoolean(false);
-    Runnable r1 = () -> {
-      try {
-        doWithLock(id1, zkUrl, lockName, () -> {
-          l1Locked.set(true);
-          synchronized (l1InLock) {
-            l1InLock.set(true);
-            l1InLock.notifyAll();
-          }
+    Runnable r1 =
+        () -> {
           try {
-            Thread.sleep(500L);
-          } catch (InterruptedException e) {
-            logger.trace("Ignore it.", e);
+            doWithLock(
+                id1,
+                zkUrl,
+                lockName,
+                () -> {
+                  l1Locked.set(true);
+                  synchronized (l1InLock) {
+                    l1InLock.set(true);
+                    l1InLock.notifyAll();
+                  }
+                  try {
+                    Thread.sleep(500L);
+                  } catch (InterruptedException e) {
+                    logger.trace("Ignore it.", e);
+                  }
+                  logger.trace("Release lock");
+                });
+          } catch (RuntimeException e) {
+            throw e;
+          } catch (Throwable e) {
+            throw new RuntimeException(e);
           }
-          logger.trace("Release lock");
-        });
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new RuntimeException(e);
-      }
-    };
-    Runnable r2 = () -> {
-      try {
-        synchronized (l1InLock) {
-          if (!l1InLock.get()) {
-            l1InLock.wait();
+        };
+    Runnable r2 =
+        () -> {
+          try {
+            synchronized (l1InLock) {
+              if (!l1InLock.get()) {
+                l1InLock.wait();
+              }
+            }
+            doWithLock(
+                id2,
+                zkUrl,
+                lockName,
+                () -> {
+                  l2Locked.set(true);
+                  synchronized (l2InLock) {
+                    l2InLock.set(true);
+                    l2InLock.notifyAll();
+                  }
+                });
+          } catch (RuntimeException e) {
+            throw e;
+          } catch (Throwable e) {
+            throw new RuntimeException(e);
           }
-        }
-        doWithLock(id2, zkUrl, lockName, () -> {
-          l2Locked.set(true);
-          synchronized (l2InLock) {
-            l2InLock.set(true);
-            l2InLock.notifyAll();
-          }
-        });
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new RuntimeException(e);
-      }
-    };
+        };
     Future<?> f1 = threadPool.submit(r1);
     Future<?> f2 = threadPool.submit(r2);
     f1.get();
     f2.get();
-    Assert.assertTrue(l1Locked.get(), "Lock 1 never acquired lock");
-    Assert.assertTrue(l2Locked.get(), "Lock 2 never acquired lock");
+    assertThat(l1Locked.get()).as("Lock 1 never acquired lock").isTrue();
+    assertThat(l2Locked.get()).as("Lock 2 never acquired lock").isTrue();
   }
 
   @Test
@@ -167,18 +180,22 @@ public class DistributedLockTest {
     AtomicBoolean l1Lock = new AtomicBoolean(false);
     AtomicBoolean l2Lock = new AtomicBoolean(false);
 
-    doWithLock(id, zkUrl, lockName, () -> {
-      l1Lock.set(true);
-      try {
-        doWithLock(id, zkUrl, lockName, () -> l2Lock.set(true));
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new RuntimeException(e);
-      }
-    });
-    Assert.assertTrue(l1Lock.get(), "Level 1 lock not acquired");
-    Assert.assertTrue(l2Lock.get(), "Level 2 lock not acquired");
+    doWithLock(
+        id,
+        zkUrl,
+        lockName,
+        () -> {
+          l1Lock.set(true);
+          try {
+            doWithLock(id, zkUrl, lockName, () -> l2Lock.set(true));
+          } catch (RuntimeException e) {
+            throw e;
+          } catch (Throwable e) {
+            throw new RuntimeException(e);
+          }
+        });
+    assertThat(l1Lock.get()).as("Level 1 lock not acquired").isTrue();
+    assertThat(l2Lock.get()).as("Level 2 lock not acquired").isTrue();
   }
 
   @Test
@@ -204,47 +221,63 @@ public class DistributedLockTest {
     ZooKeeper zk2 = ZooKeeperUtils.connectToZooKeeper(zkUrl, Integer.MAX_VALUE).get();
     DistributedLock lock2 = new DistributedLockImpl(id2, zk2, LOCK_FOLDER, lockName);
 
-    lock1.lock().thenAccept(v -> {
-      logger.trace("Lock1 acquired lock");
-      l1.set(true);
-      countDownLatch1.countDown();
-      lock.lock();
-      try {
-        cond.await();
-      } catch (InterruptedException e) {
-        logger.error("Error happened when wait for lock2 done.");
-      } finally {
-        lock.unlock();
-      }
-    }).exceptionally(cause -> {
-      logger.error("Error hapened in lock1", cause);
-      return null;
-    })
+    lock1
+        .lock()
+        .thenAccept(
+            v -> {
+              logger.trace("Lock1 acquired lock");
+              l1.set(true);
+              countDownLatch1.countDown();
+              lock.lock();
+              try {
+                cond.await();
+              } catch (InterruptedException e) {
+                logger.error("Error happened when wait for lock2 done.");
+              } finally {
+                lock.unlock();
+              }
+            })
+        .exceptionally(
+            cause -> {
+              logger.error("Error hapened in lock1", cause);
+              return null;
+            })
         .thenCompose(v -> lock1.unlock())
-        .exceptionally(cause -> {
-          logger.error("Error happened when unlock lock1", cause);
-          return null;
-        }).whenComplete((v, cause) -> countDownLatch2.countDown());
+        .exceptionally(
+            cause -> {
+              logger.error("Error happened when unlock lock1", cause);
+              return null;
+            })
+        .whenComplete((v, cause) -> countDownLatch2.countDown());
 
     countDownLatch1.await();
 
-    lock2.lock().thenAccept(v -> {
-      logger.trace("Lock2 acquired lock");
-      l2.set(true);
-    });
+    lock2
+        .lock()
+        .thenAccept(
+            v -> {
+              logger.trace("Lock2 acquired lock");
+              l2.set(true);
+            });
     Thread.sleep(1000L);
-    lock2.unlock().exceptionally(cause -> {
-      logger.error("Error happened in lock2 unlock", cause);
-      return null;
-    }).thenAccept(v -> {
-      logger.trace("Lock2 unlocked");
-      lock.lock();
-      try {
-        cond.signal();
-      } finally {
-        lock.unlock();
-      }
-    }).whenComplete((v, cause) -> countDownLatch3.countDown());
+    lock2
+        .unlock()
+        .exceptionally(
+            cause -> {
+              logger.error("Error happened in lock2 unlock", cause);
+              return null;
+            })
+        .thenAccept(
+            v -> {
+              logger.trace("Lock2 unlocked");
+              lock.lock();
+              try {
+                cond.signal();
+              } finally {
+                lock.unlock();
+              }
+            })
+        .whenComplete((v, cause) -> countDownLatch3.countDown());
 
     Thread.sleep(1000L);
 
@@ -257,38 +290,44 @@ public class DistributedLockTest {
   private void doWithLock(UUID id, String zkUrl, String locker, Runnable runnable)
       throws InterruptedException {
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    ZooKeeperUtils.connectToZooKeeper(zkUrl, Integer.MAX_VALUE).thenCompose(zooKeeper -> {
-      try {
-        DistributedLock lock = new DistributedLockImpl(id, zooKeeper, LOCK_FOLDER, locker);
-        return lock.lock().thenAccept(v -> {
-          try {
-            logger.info("{}: Lock acquired", locker);
-            runnable.run();
-          } catch (Throwable e) {
-            logger.warn("Error happened", e);
-          }
-        }).thenCompose(v -> lock.unlock())
-            .whenComplete((v, cause) -> {
+    ZooKeeperUtils.connectToZooKeeper(zkUrl, Integer.MAX_VALUE)
+        .thenCompose(
+            zooKeeper -> {
               try {
-                logger.trace("Close zookeeper.");
-                zooKeeper.close();
+                DistributedLock lock = new DistributedLockImpl(id, zooKeeper, LOCK_FOLDER, locker);
+                return lock.lock()
+                    .thenAccept(
+                        v -> {
+                          try {
+                            logger.info("{}: Lock acquired", locker);
+                            runnable.run();
+                          } catch (Throwable e) {
+                            logger.warn("Error happened", e);
+                          }
+                        })
+                    .thenCompose(v -> lock.unlock())
+                    .whenComplete(
+                        (v, cause) -> {
+                          try {
+                            logger.trace("Close zookeeper.");
+                            zooKeeper.close();
+                          } catch (Throwable e) {
+                            logger.info("Close zookeeper throw exception, ignore it.", e);
+                          } finally {
+                            countDownLatch.countDown();
+                          }
+                        });
+              } catch (RuntimeException e) {
+                throw e;
               } catch (Throwable e) {
-                logger.info("Close zookeeper throw exception, ignore it.", e);
-              } finally {
-                countDownLatch.countDown();
+                throw new RuntimeException(e);
               }
             });
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new RuntimeException(e);
-      }
-    });
     countDownLatch.await();
   }
 
-  @AfterClass
-  public void destroy() throws IOException {
+  @AfterAll
+  public static void destroy() throws IOException {
     logger.info("Stop zookeeper");
     zkTestServer.close();
     threadPool.shutdown();

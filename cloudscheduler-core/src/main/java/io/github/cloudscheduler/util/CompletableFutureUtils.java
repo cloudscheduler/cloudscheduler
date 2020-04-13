@@ -38,8 +38,8 @@ import java.util.concurrent.TimeoutException;
  * @author Wei Gao
  */
 public abstract class CompletableFutureUtils {
-  private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1,
-      r -> new Thread(r, "CompletableFutureDelayScheduler"));
+  private static final ScheduledExecutorService scheduler =
+      Executors.newScheduledThreadPool(1, r -> new Thread(r, "CompletableFutureDelayScheduler"));
 
   /**
    * Return a completable future with exception.
@@ -77,9 +77,11 @@ public abstract class CompletableFutureUtils {
    */
   public static <T> CompletableFuture<T> timeoutAfter(Duration timeout) {
     TimeoutCompletableFuture<T> result = new TimeoutCompletableFuture<>();
-    result.setFuture(scheduler.schedule(() ->
-            result.completeExceptionally(new TimeoutException("timeout")),
-        timeout.toMillis(), TimeUnit.MILLISECONDS));
+    result.setFuture(
+        scheduler.schedule(
+            () -> result.completeExceptionally(new TimeoutException("timeout")),
+            timeout.toMillis(),
+            TimeUnit.MILLISECONDS));
     return result;
   }
 

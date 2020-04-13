@@ -92,17 +92,20 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   /**
    * Constructor.
    *
-   * @param node      node
-   * @param zkUrl     zookeeper url
+   * @param node node
+   * @param zkUrl zookeeper url
    * @param zkTimeout zookeeper timeout value
-   * @param observer  observer
+   * @param jobFactory job factory
+   * @param customerThreadPool Thread pool bee used to execute customer logic
+   * @param observer observer
    */
-  public SchedulerMaster(Node node,
-                         String zkUrl,
-                         int zkTimeout,
-                         JobFactory jobFactory,
-                         ExecutorService customerThreadPool,
-                         CloudSchedulerObserver observer) {
+  public SchedulerMaster(
+      Node node,
+      String zkUrl,
+      int zkTimeout,
+      JobFactory jobFactory,
+      ExecutorService customerThreadPool,
+      CloudSchedulerObserver observer) {
     Objects.requireNonNull(node, "Node is mandatory");
     Objects.requireNonNull(zkUrl, "ZooKeeper url is mandatory");
     Objects.requireNonNull(jobFactory, "JobFactory is mandatory");
@@ -123,9 +126,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     workerNodes = new HashSet<>();
   }
 
-  /**
-   * Start scheduler master.
-   */
+  /** Start scheduler master. */
   public void start() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler master");
@@ -134,43 +135,57 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       scanJobDefJob = CompletableFuture.completedFuture(null);
       workerNodeChanged.set(true);
       jobDefinitionChanged.set(true);
-      zkConnector = ZooKeeperUtils.connectToZooKeeper(zkUrl, zkTimeout, eventType -> {
-        if (eventType == EventType.CONNECTION_LOST) {
-          lostConnection();
-        }
-      });
+      zkConnector =
+          ZooKeeperUtils.connectToZooKeeper(
+              zkUrl,
+              zkTimeout,
+              eventType -> {
+                if (eventType == EventType.CONNECTION_LOST) {
+                  lostConnection();
+                }
+              });
       zkConnector.thenAccept(this::initialMaster);
     }
   }
 
   private void initialMaster(ZooKeeper zooKeeper) {
-    threadPool = Executors.newSingleThreadExecutor(r -> {
-      Thread t = new Thread(r, "SchedulerMaster");
-      t.setPriority(Thread.MAX_PRIORITY);
-      return t;
-    });
-    scheduledThreadPool = Executors.newScheduledThreadPool(1, r -> {
-      Thread t = new Thread(r, "SchedulerMaster-Scheduler");
-      t.setPriority(Thread.MAX_PRIORITY);
-      return t;
-    });
+    threadPool =
+        Executors.newSingleThreadExecutor(
+            r -> {
+              Thread t = new Thread(r, "SchedulerMaster");
+              t.setPriority(Thread.MAX_PRIORITY);
+              return t;
+            });
+    scheduledThreadPool =
+        Executors.newScheduledThreadPool(
+            1,
+            r -> {
+              Thread t = new Thread(r, "SchedulerMaster-Scheduler");
+              t.setPriority(Thread.MAX_PRIORITY);
+              return t;
+            });
     logger.trace("Master zookeeper: {}", zooKeeper);
     jobService = new JobServiceImpl(zooKeeper);
     masterLock = new DistributedLockImpl(this.node.getId(), zooKeeper, LOCK_PATH, MASTER_LOCK);
-    masterLock.lock().thenAccept(v -> {
-      logger.info("I'm the master now.");
-      observer.masterNodeUp(node.getId(), Instant.now());
-      scanWorkerNodes();
-      scanJobDefinitions();
-    }).whenComplete((v, cause) -> {
-      if (cause != null) {
-        logger.warn("SchedulerMaster start throw exception", cause);
-        completeExceptionally(cause);
-      } else {
-        logger.trace("SchedulerMaster started.");
-        complete(null);
-      }
-    });
+    masterLock
+        .lock()
+        .thenAccept(
+            v -> {
+              logger.info("I'm the master now.");
+              observer.masterNodeUp(node.getId(), Instant.now());
+              scanWorkerNodes();
+              scanJobDefinitions();
+            })
+        .whenComplete(
+            (v, cause) -> {
+              if (cause != null) {
+                logger.warn("SchedulerMaster start throw exception", cause);
+                completeExceptionally(cause);
+              } else {
+                logger.trace("SchedulerMaster started.");
+                complete(null);
+              }
+            });
   }
 
   @Override
@@ -180,56 +195,72 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       zkConnector.cancel(false);
       CompletableFuture<ZooKeeper> t = zkConnector;
       zkConnector = new CompletableFuture<>();
-      return t.exceptionally(e -> {
-        logger.trace("ZooKeeper exception: ", e);
-        return null;
-      }).thenCompose(zk ->
-          scanJobDefJob.exceptionally(e -> {
-            logger.warn("Scan JobDefinition exception", e);
-            return null;
-          })
-              .whenComplete((v, cause) -> logger.info("Scan JobDefinition complete"))
-              .thenCombine(scanWorkerNodeJob.exceptionally(e -> {
-                logger.warn("Scan worker node exception", e);
-                return null;
-              }).whenComplete((v, cause) -> logger.info("Scan worker node complete")),
-                  (a, b) -> null)
-              .thenCompose(v -> destroyAllJobDefinitionProcessor())
-              .exceptionally(e -> {
-                logger.warn("Destroy all JobDefinition processor exception", e);
-                return null;
-              }).whenComplete((v, cause) -> logger.info("All JobDefinition processor destroyed"))
-              .thenCompose(v -> masterLock.unlock())
-              .exceptionally(e -> {
-                logger.warn("Error happened when unlock master lock", e);
+      return t.exceptionally(
+              e -> {
+                logger.trace("ZooKeeper exception: ", e);
                 return null;
               })
-              .whenComplete((v, cause) -> {
-                if (zk != null) {
-                  logger.debug("Close zookeeper {}", zk);
-                  try {
-                    zk.close();
-                  } catch (InterruptedException e) {
-                    logger.debug("Close zookeeper for scheduler master error", e);
-                  }
+          .thenCompose(
+              zk ->
+                  scanJobDefJob
+                      .exceptionally(
+                          e -> {
+                            logger.warn("Scan JobDefinition exception", e);
+                            return null;
+                          })
+                      .whenComplete((v, cause) -> logger.info("Scan JobDefinition complete"))
+                      .thenCombine(
+                          scanWorkerNodeJob
+                              .exceptionally(
+                                  e -> {
+                                    logger.warn("Scan worker node exception", e);
+                                    return null;
+                                  })
+                              .whenComplete((v, cause) -> logger.info("Scan worker node complete")),
+                          (a, b) -> null)
+                      .thenCompose(v -> destroyAllJobDefinitionProcessor())
+                      .exceptionally(
+                          e -> {
+                            logger.warn("Destroy all JobDefinition processor exception", e);
+                            return null;
+                          })
+                      .whenComplete(
+                          (v, cause) -> logger.info("All JobDefinition processor destroyed"))
+                      .thenCompose(v -> masterLock.unlock())
+                      .exceptionally(
+                          e -> {
+                            logger.warn("Error happened when unlock master lock", e);
+                            return null;
+                          })
+                      .whenComplete(
+                          (v, cause) -> {
+                            if (zk != null) {
+                              logger.debug("Close zookeeper {}", zk);
+                              try {
+                                zk.close();
+                              } catch (InterruptedException e) {
+                                logger.debug("Close zookeeper for scheduler master error", e);
+                              }
+                            }
+                          }))
+          .exceptionally(
+              e -> {
+                logger.trace("Error when shutdown scheduler master.", e);
+                return null;
+              })
+          .whenComplete(
+              (v, cause) -> {
+                logger.trace("Shutdown thread pool");
+                if (threadPool != null) {
+                  threadPool.shutdown();
+                }
+                logger.trace("Shutdown scheduled thread pool");
+                if (scheduledThreadPool != null) {
+                  scheduledThreadPool.shutdown();
                 }
               })
-      ).exceptionally(e -> {
-        logger.trace("Error when shutdown scheduler master.", e);
-        return null;
-      })
-          .whenComplete((v, cause) -> {
-            logger.trace("Shutdown thread pool");
-            if (threadPool != null) {
-              threadPool.shutdown();
-            }
-            logger.trace("Shutdown scheduled thread pool");
-            if (scheduledThreadPool != null) {
-              scheduledThreadPool.shutdown();
-            }
-          }).whenComplete((v, cause) ->
-              observer.masterNodeDown(node.getId(), Instant.now())
-          ).whenComplete((v, cause) -> logger.info("SchedulerMaster down"));
+          .whenComplete((v, cause) -> observer.masterNodeDown(node.getId(), Instant.now()))
+          .whenComplete((v, cause) -> logger.info("SchedulerMaster down"));
     } else {
       return CompletableFuture.completedFuture(null);
     }
@@ -246,36 +277,47 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     logger.debug("Scanning worker node, workerNodeChanged value: {}", workerNodeChanged.get());
     while (workerNodeChanged.compareAndSet(true, false)) {
       logger.trace("In scan worker node loop.");
-      scanWorkerNodeJob = scanWorkerNodeJob.thenCompose(v ->
-          jobService.getCurrentWorkersAsync(eventType -> {
-            if (eventType == EventType.CHILD_CHANGED) {
-              if (running.get() && workerNodeChanged.compareAndSet(false, true)) {
-                logger.trace("Start scan worker node");
-                scanWorkerNodes();
-              } else {
-                logger.trace("Scan worker node in progress.");
-              }
-            }
-          }).thenComposeAsync(nodes -> {
-            logger.trace("Scan worker nodes get {} records", nodes.size());
-            return processWorkerNodes(nodes)
-                .thenApply(n -> {
-                  Set<UUID> previousNodes = new HashSet<>(workerNodes);
-                  previousNodes.removeAll(nodes);
-                  workerNodes.addAll(nodes);
-                  workerNodes.removeIf(id -> !nodes.contains(id));
-                  if (!previousNodes.isEmpty()) {
-                    Instant now = Instant.now();
-                    logger.debug("{} worker nodes removed.", previousNodes.size());
-                    previousNodes.forEach(id -> observer.workerNodeRemoved(id, now));
-                  }
-                  return previousNodes.size();
-                });
-          }, threadPool)
-              .exceptionally(cause -> {
-                logger.warn("Error happened when scan worker nodes", cause);
-                return null;
-              }));
+      scanWorkerNodeJob =
+          scanWorkerNodeJob.thenCompose(
+              v ->
+                  jobService
+                      .getCurrentWorkersAsync(
+                          eventType -> {
+                            if (eventType == EventType.CHILD_CHANGED) {
+                              if (running.get() && workerNodeChanged.compareAndSet(false, true)) {
+                                logger.trace("Start scan worker node");
+                                scanWorkerNodes();
+                              } else {
+                                logger.trace("Scan worker node in progress.");
+                              }
+                            }
+                          })
+                      .thenComposeAsync(
+                          nodes -> {
+                            logger.trace("Scan worker nodes get {} records", nodes.size());
+                            return processWorkerNodes(nodes)
+                                .thenApply(
+                                    n -> {
+                                      Set<UUID> previousNodes = new HashSet<>(workerNodes);
+                                      previousNodes.removeAll(nodes);
+                                      workerNodes.addAll(nodes);
+                                      workerNodes.removeIf(id -> !nodes.contains(id));
+                                      if (!previousNodes.isEmpty()) {
+                                        Instant now = Instant.now();
+                                        logger.debug(
+                                            "{} worker nodes removed.", previousNodes.size());
+                                        previousNodes.forEach(
+                                            id -> observer.workerNodeRemoved(id, now));
+                                      }
+                                      return previousNodes.size();
+                                    });
+                          },
+                          threadPool)
+                      .exceptionally(
+                          cause -> {
+                            logger.warn("Error happened when scan worker nodes", cause);
+                            return null;
+                          }));
     }
   }
 
@@ -283,62 +325,82 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     Instant now = Instant.now();
     if (scanningWorkerNodes.compareAndSet(false, true)) {
       logger.debug("Process {} worker node(s)", workerNodeIds.size());
-      return processRemoveWorkerNodes(workerNodeIds, now).whenComplete((v, cause) -> {
-        if (cause != null) {
-          logger.debug("Error happened when process remove worker nodes.", cause);
-        }
-        scanningWorkerNodes.set(false);
-      }).thenAccept(n -> logger.debug("{} job instances failed because of node down.", n));
+      return processRemoveWorkerNodes(workerNodeIds, now)
+          .whenComplete(
+              (v, cause) -> {
+                if (cause != null) {
+                  logger.debug("Error happened when process remove worker nodes.", cause);
+                }
+                scanningWorkerNodes.set(false);
+              })
+          .thenAccept(n -> logger.debug("{} job instances failed because of node down.", n));
     } else {
       logger.debug("Process worker nodes in progress.");
       return CompletableFuture.completedFuture(null);
     }
   }
 
-  private CompletableFuture<Integer> processRemoveWorkerNodes(List<UUID> workerNodeIds,
-                                                              Instant removeTime) {
+  private CompletableFuture<Integer> processRemoveWorkerNodes(
+      List<UUID> workerNodeIds, Instant removeTime) {
     logger.trace("Process remove worker nodes");
     AtomicInteger failedJobInstances = new AtomicInteger(0);
-    return jobService.listAllJobInstanceIdsAsync().thenComposeAsync(ids -> {
-      List<CompletableFuture<JobInstance>> fs = new ArrayList<>();
-      ids.forEach(id -> fs.add(jobService.getJobInstanceByIdAsync(id)
-          .thenComposeAsync(ji -> {
-            if (ji != null) {
-              for (UUID nodeId : ji.getRunStatus().keySet()) {
-                if (!workerNodeIds.contains(nodeId)) {
-                  return jobService.completeJobInstanceAsync(id,
-                      nodeId, removeTime, JobInstanceState.NODE_FAILED);
-                }
-              }
-              return CompletableFuture.completedFuture(ji);
-            } else {
-              return CompletableFuture.completedFuture(null);
-            }
-          }, threadPool)));
-      return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-          .thenAccept(v -> failedJobInstances.addAndGet(fs.size()));
-    }, threadPool)
+    return jobService
+        .listAllJobInstanceIdsAsync()
+        .thenComposeAsync(
+            ids -> {
+              List<CompletableFuture<JobInstance>> fs = new ArrayList<>();
+              ids.forEach(
+                  id ->
+                      fs.add(
+                          jobService
+                              .getJobInstanceByIdAsync(id)
+                              .thenComposeAsync(
+                                  ji -> {
+                                    if (ji != null) {
+                                      for (UUID nodeId : ji.getRunStatus().keySet()) {
+                                        if (!workerNodeIds.contains(nodeId)) {
+                                          return jobService.completeJobInstanceAsync(
+                                              id, nodeId, removeTime, JobInstanceState.NODE_FAILED);
+                                        }
+                                      }
+                                      return CompletableFuture.completedFuture(ji);
+                                    } else {
+                                      return CompletableFuture.completedFuture(null);
+                                    }
+                                  },
+                                  threadPool)));
+              return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
+                  .thenAccept(v -> failedJobInstances.addAndGet(fs.size()));
+            },
+            threadPool)
         .thenApply(v -> failedJobInstances.get());
   }
 
   private void scanJobDefinitions() {
     logger.debug("Scanning job definition");
     while (jobDefinitionChanged.compareAndSet(true, false)) {
-      scanJobDefJob = scanJobDefJob.thenCompose(v ->
-          jobService.listAllJobDefinitionsAsync(eventType -> {
-            if (eventType == EventType.CHILD_CHANGED) {
-              if (running.get() && jobDefinitionChanged.compareAndSet(false, true)) {
-                logger.trace("Start scan job definition");
-                threadPool.submit(this::scanJobDefinitions);
-              } else {
-                logger.trace("Scan job definition in progress.");
-              }
-            }
-          }).thenAcceptAsync(this::processJobDefinitions, threadPool)
-              .exceptionally(cause -> {
-                logger.warn("Error happened when scan job definition", cause);
-                return null;
-              }));
+      scanJobDefJob =
+          scanJobDefJob.thenCompose(
+              v ->
+                  jobService
+                      .listAllJobDefinitionsAsync(
+                          eventType -> {
+                            if (eventType == EventType.CHILD_CHANGED) {
+                              if (running.get()
+                                  && jobDefinitionChanged.compareAndSet(false, true)) {
+                                logger.trace("Start scan job definition");
+                                threadPool.submit(this::scanJobDefinitions);
+                              } else {
+                                logger.trace("Scan job definition in progress.");
+                              }
+                            }
+                          })
+                      .thenAcceptAsync(this::processJobDefinitions, threadPool)
+                      .exceptionally(
+                          cause -> {
+                            logger.warn("Error happened when scan job definition", cause);
+                            return null;
+                          }));
     }
   }
 
@@ -348,16 +410,25 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       logger.debug("Process {} JobDefinition(s)", jobDefs.size());
       try {
         List<UUID> jobDefIds = new ArrayList<>(jobDefs.size());
-        jobDefs.forEach(jobDef -> {
-          jobDefIds.add(jobDef.getId());
-          processors.computeIfAbsent(jobDef.getId(), (id -> {
-            logger.trace("Find new JobDefinition, id: {}", id);
-            JobDefinitionProcessor processor = new JobDefinitionProcessor(jobDef,
-                threadPool, jobService, jobFactory, customerThreadPool, observer);
-            processor.start();
-            return processor;
-          }));
-        });
+        jobDefs.forEach(
+            jobDef -> {
+              jobDefIds.add(jobDef.getId());
+              processors.computeIfAbsent(
+                  jobDef.getId(),
+                  (id -> {
+                    logger.trace("Find new JobDefinition, id: {}", id);
+                    JobDefinitionProcessor processor =
+                        new JobDefinitionProcessor(
+                            jobDef,
+                            threadPool,
+                            jobService,
+                            jobFactory,
+                            customerThreadPool,
+                            observer);
+                    processor.start();
+                    return processor;
+                  }));
+            });
         // Remove not exist JobDefinition processor
         Iterator<Map.Entry<UUID, JobDefinitionProcessor>> ite = processors.entrySet().iterator();
         while (ite.hasNext()) {

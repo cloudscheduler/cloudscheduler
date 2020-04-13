@@ -37,9 +37,7 @@ import java.util.UUID;
  * @author Wei Gao
  */
 abstract class JobInstanceMixIn {
-  JobInstanceMixIn(@JsonProperty("id") UUID id,
-                   @JsonProperty("definition_id") UUID jobDefId) {
-  }
+  JobInstanceMixIn(@JsonProperty("id") UUID id, @JsonProperty("definition_id") UUID jobDefId) {}
 
   @JsonProperty("id")
   abstract UUID getId();

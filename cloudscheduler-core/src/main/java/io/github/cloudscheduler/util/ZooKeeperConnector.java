@@ -48,34 +48,38 @@ class ZooKeeperConnector extends CompletableFuture<ZooKeeper> {
   /**
    * Constructor.
    *
-   * @param zkUrl     zookeeper url
+   * @param zkUrl zookeeper url
    * @param zkTimeout zookeeper timeout value
-   * @param listener  zookeeper disconnect event listener
+   * @param listener zookeeper disconnect event listener
    */
   ZooKeeperConnector(String zkUrl, int zkTimeout, Consumer<EventType> listener) {
     Objects.requireNonNull(zkUrl, "ZooKeeper url is mandatory");
     connected = new AtomicBoolean(false);
 
     try {
-      zooKeeper = new ZooKeeper(zkUrl, zkTimeout, event -> {
-        logger.debug("Connect to zookeeper get watched event: {}", event);
-        switch (event.getState()) {
-          case SyncConnected:
-          case ConnectedReadOnly:
-            connected.set(true);
-            this.complete(zooKeeper);
-            break;
-          case Disconnected:
-          case Expired:
-            connected.set(false);
-            if (listener != null) {
-              listener.accept(EventType.CONNECTION_LOST);
-            }
-            break;
-          default:
-            this.completeExceptionally(new KeeperException.ConnectionLossException());
-        }
-      });
+      zooKeeper =
+          new ZooKeeper(
+              zkUrl,
+              zkTimeout,
+              event -> {
+                logger.debug("Connect to zookeeper get watched event: {}", event);
+                switch (event.getState()) {
+                  case SyncConnected:
+                  case ConnectedReadOnly:
+                    connected.set(true);
+                    this.complete(zooKeeper);
+                    break;
+                  case Disconnected:
+                  case Expired:
+                    connected.set(false);
+                    if (listener != null) {
+                      listener.accept(EventType.CONNECTION_LOST);
+                    }
+                    break;
+                  default:
+                    this.completeExceptionally(new KeeperException.ConnectionLossException());
+                }
+              });
     } catch (IOException e) {
       this.completeExceptionally(e);
     }

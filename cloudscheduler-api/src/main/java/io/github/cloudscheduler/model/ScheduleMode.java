@@ -25,20 +25,12 @@
 package io.github.cloudscheduler.model;
 
 public enum ScheduleMode {
-  /**
-   * A job that start immediately.
-   */
+  /** A job that start immediately. */
   START_NOW,
-  /**
-   * A job that start at specific time.
-   */
+  /** A job that start at specific time. */
   START_AT,
-  /**
-   * A job scheduled based on cron expression.
-   */
+  /** A job scheduled based on cron expression. */
   CRON,
-  /**
-   * A job that run time calculated by JobScheduleCalcuator implementation.
-   */
+  /** A job that run time calculated by JobScheduleCalcuator implementation. */
   CUSTOMIZED
 }

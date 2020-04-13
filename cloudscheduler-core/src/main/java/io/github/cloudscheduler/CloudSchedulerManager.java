@@ -42,9 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is main class to start. In order to use you Cloud scheduler, you need to
- * create a instance of this class, and call start on it. And then, use a instance of Scheduler
- * to schedule the jobs.
+ * This is main class to start. In order to use you Cloud scheduler, you need to create a instance
+ * of this class, and call start on it. And then, use a instance of Scheduler to schedule the jobs.
  *
  * @author Wei Gao
  */
@@ -59,19 +58,20 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
   /**
    * Constructor.
    *
-   * @param zkUrl              zookeeper url
-   * @param zkTimeout          zookeeper timeout value
+   * @param zkUrl zookeeper url
+   * @param zkTimeout zookeeper timeout value
    * @param customerThreadPool thread pool to run job
-   * @param jobFactory         job factory
-   * @param roles              node roles
+   * @param jobFactory job factory
+   * @param roles node roles
    */
-  private CloudSchedulerManager(UUID nodeId,
-                                String zkUrl,
-                                int zkTimeout,
-                                ExecutorService customerThreadPool,
-                                JobFactory jobFactory,
-                                CloudSchedulerObserver observer,
-                                List<NodeRole> roles) {
+  private CloudSchedulerManager(
+      UUID nodeId,
+      String zkUrl,
+      int zkTimeout,
+      ExecutorService customerThreadPool,
+      JobFactory jobFactory,
+      CloudSchedulerObserver observer,
+      List<NodeRole> roles) {
     nodeRoles = roles;
     Node node = new Node(nodeId);
     master = new SchedulerMaster(node, zkUrl, zkTimeout, jobFactory, customerThreadPool, observer);
@@ -80,9 +80,7 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
   }
 
-  /**
-   * Start this cloud scheduler manager.
-   */
+  /** Start this cloud scheduler manager. */
   public void start() {
     if (running.compareAndSet(false, true)) {
       List<CompletableFuture<Void>> fs = new ArrayList<>(2);
@@ -95,13 +93,14 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
         fs.add(worker);
       }
       CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-          .whenComplete((v, cause) -> {
-            if (cause != null) {
-              completeExceptionally(cause);
-            } else {
-              complete(null);
-            }
-          });
+          .whenComplete(
+              (v, cause) -> {
+                if (cause != null) {
+                  completeExceptionally(cause);
+                } else {
+                  complete(null);
+                }
+              });
     }
   }
 
@@ -109,17 +108,30 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutting down cloud scheduler manager");
-      return this.exceptionally(cause -> {
-        logger.error("Error happened when start cloud scheduler manager.", cause);
-        return null;
-      })
-          .thenCompose(v -> worker.shutdownAsync().exceptionally(cause -> {
-            logger.warn("Error happened when shutdown scheduler worker", cause);
-            return null;
-          }).thenCombine(master.shutdownAsync().exceptionally(cause -> {
-            logger.warn("Error happened when shutdown scheduler master", cause);
-            return null;
-          }), (a, b) -> null));
+      return this.exceptionally(
+              cause -> {
+                logger.error("Error happened when start cloud scheduler manager.", cause);
+                return null;
+              })
+          .thenCompose(
+              v ->
+                  worker
+                      .shutdownAsync()
+                      .exceptionally(
+                          cause -> {
+                            logger.warn("Error happened when shutdown scheduler worker", cause);
+                            return null;
+                          })
+                      .thenCombine(
+                          master
+                              .shutdownAsync()
+                              .exceptionally(
+                                  cause -> {
+                                    logger.warn(
+                                        "Error happened when shutdown scheduler master", cause);
+                                    return null;
+                                  }),
+                          (a, b) -> null));
     } else {
       return CompletableFuture.completedFuture(null);
     }
@@ -130,9 +142,7 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
     return new Builder(zkUrl);
   }
 
-  /**
-   * Cloud scheduler manager builder class. Used to build cloud scheduler manager.
-   */
+  /** Cloud scheduler manager builder class. Used to build cloud scheduler manager. */
   public static final class Builder {
     private final String zkUrl;
     private UUID nodeId;
@@ -234,11 +244,13 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
       ExecutorService threadPool = this.threadPool;
       if (threadPool == null) {
         final AtomicInteger threadCounter = new AtomicInteger(0);
-        threadPool = Executors.newCachedThreadPool(r -> {
-          Thread t = new Thread(r);
-          t.setName("JobExecutionThreadPool-" + threadCounter.incrementAndGet());
-          return t;
-        });
+        threadPool =
+            Executors.newCachedThreadPool(
+                r -> {
+                  Thread t = new Thread(r);
+                  t.setName("JobExecutionThreadPool-" + threadCounter.incrementAndGet());
+                  return t;
+                });
       }
       JobFactory jobFactory = this.jobFactory;
       if (jobFactory == null) {
@@ -247,11 +259,11 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
       Supplier<CloudSchedulerObserver> observerSupplier = this.observerSupplier;
       CloudSchedulerObserver observer;
       if (observerSupplier == null) {
-        observer = new CompositeCloudSchedulerObserver(
-            CloudSchedulerObserver.getCloudSchedulerObserver());
+        observer =
+            new CompositeCloudSchedulerObserver(CloudSchedulerObserver.getCloudSchedulerObserver());
       } else {
-        observer = new CompositeCloudSchedulerObserver(
-            Collections.singletonList(observerSupplier.get()));
+        observer =
+            new CompositeCloudSchedulerObserver(Collections.singletonList(observerSupplier.get()));
       }
       List<NodeRole> roles;
       if (this.roles == null || this.roles.length == 0) {
@@ -259,8 +271,8 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
       } else {
         roles = Arrays.asList(this.roles);
       }
-      return new CloudSchedulerManager(nodeId, zkUrl, zkTimeout, threadPool,
-          jobFactory, observer, roles);
+      return new CloudSchedulerManager(
+          nodeId, zkUrl, zkTimeout, threadPool, jobFactory, observer, roles);
     }
   }
 }

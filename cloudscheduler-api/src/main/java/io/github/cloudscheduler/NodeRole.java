@@ -30,5 +30,6 @@ package io.github.cloudscheduler;
  * @author Wei Gao
  */
 public enum NodeRole {
-  MASTER, WORKER
+  MASTER,
+  WORKER
 }

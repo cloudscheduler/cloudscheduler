@@ -55,8 +55,13 @@ public abstract class RetryStrategy {
   private final List<Class<? extends Throwable>> retryOn;
   private final boolean useRandom;
 
-  RetryStrategy(int maxRetryTimes, long maxDelay, List<Class<? extends Throwable>> retryOn,
-                List<Class<? extends Throwable>> stopAt, boolean useRandom, boolean retryOnNull) {
+  RetryStrategy(
+      int maxRetryTimes,
+      long maxDelay,
+      List<Class<? extends Throwable>> retryOn,
+      List<Class<? extends Throwable>> stopAt,
+      boolean useRandom,
+      boolean retryOnNull) {
     this.maxRetryTimes = maxRetryTimes;
     this.maxDelay = maxDelay;
     this.retryOn = retryOn;
@@ -69,50 +74,55 @@ public abstract class RetryStrategy {
    * Use to call logic with retry.
    *
    * @param operation operation
-   * @param <T>       data type
+   * @param <T> data type
    * @return completable future
    */
   public <T> CompletableFuture<T> call(Supplier<CompletableFuture<T>> operation) {
     CompletableFuture<T> result = new CompletableFuture<>();
     AtomicReference<Consumer<Integer>> consumerHolder = new AtomicReference<>();
     try {
-      consumerHolder.set((retries) -> {
-        logger.trace("{} try", retries);
-        operation.get().whenComplete((v, exp) -> {
-          if (exp == null && (!retryOnNull || v != null)) {
-            logger.trace("Operation success, complete value result");
-            result.complete(v);
-          } else {
-            Throwable cause = exp;
-            if (exp != null) {
-              if (exp instanceof CompletionException || exp instanceof ExecutionException) {
-                cause = exp.getCause();
-              }
-            }
-            if (shouldRetry(v, cause, retries)) {
-              logger.trace("Will retry");
-              long interval = nextRetryDelay(v, cause, retries);
-              if (interval <= 0L) {
-                logger.trace("Retry now");
-                consumerHolder.get().accept(retries + 1);
-              } else {
-                logger.trace("Scheduling retry");
-                CompletableFutureUtils.completeAfter(Duration.ofMillis(interval), null)
-                    .thenAccept(n -> consumerHolder.get().accept(retries + 1));
-              }
-            } else {
-              logger.trace("Shouldn't retry");
-              if (cause != null) {
-                logger.trace("Complete with exception");
-                result.completeExceptionally(cause);
-              } else {
-                logger.trace("Complete with value");
-                result.complete(v);
-              }
-            }
-          }
-        });
-      });
+      consumerHolder.set(
+          (retries) -> {
+            logger.trace("{} try", retries);
+            operation
+                .get()
+                .whenComplete(
+                    (v, exp) -> {
+                      if (exp == null && (!retryOnNull || v != null)) {
+                        logger.trace("Operation success, complete value result");
+                        result.complete(v);
+                      } else {
+                        Throwable cause = exp;
+                        if (exp != null) {
+                          if (exp instanceof CompletionException
+                              || exp instanceof ExecutionException) {
+                            cause = exp.getCause();
+                          }
+                        }
+                        if (shouldRetry(v, cause, retries)) {
+                          logger.trace("Will retry");
+                          long interval = nextRetryDelay(v, cause, retries);
+                          if (interval <= 0L) {
+                            logger.trace("Retry now");
+                            consumerHolder.get().accept(retries + 1);
+                          } else {
+                            logger.trace("Scheduling retry");
+                            CompletableFutureUtils.completeAfter(Duration.ofMillis(interval), null)
+                                .thenAccept(n -> consumerHolder.get().accept(retries + 1));
+                          }
+                        } else {
+                          logger.trace("Shouldn't retry");
+                          if (cause != null) {
+                            logger.trace("Complete with exception");
+                            result.completeExceptionally(cause);
+                          } else {
+                            logger.trace("Complete with value");
+                            result.complete(v);
+                          }
+                        }
+                      }
+                    });
+          });
     } catch (Throwable e) {
       result.completeExceptionally(e);
     }
@@ -153,20 +163,26 @@ public abstract class RetryStrategy {
   }
 
   private enum Type {
-    FIXED_DELAY, INCREMENTAL_DELAY, EXPONENTIAL, FIBONACCI
+    FIXED_DELAY,
+    INCREMENTAL_DELAY,
+    EXPONENTIAL,
+    FIBONACCI
   }
 
   private static final class ExponentialRetryStrategy extends RetryStrategy {
     private final long multiplier;
 
-    ExponentialRetryStrategy(long multiplier, int maxRetryTimes, long maxDelay,
-                             List<Class<? extends Throwable>> retryOn,
-                             List<Class<? extends Throwable>> stopAt,
-                             boolean useRandom, boolean retryOnNull) {
+    ExponentialRetryStrategy(
+        long multiplier,
+        int maxRetryTimes,
+        long maxDelay,
+        List<Class<? extends Throwable>> retryOn,
+        List<Class<? extends Throwable>> stopAt,
+        boolean useRandom,
+        boolean retryOnNull) {
       super(maxRetryTimes, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
       this.multiplier = multiplier;
     }
-
 
     @Override
     protected <T> long nextRetryInterval(T v, Throwable exp, int retries) {
@@ -191,10 +207,14 @@ public abstract class RetryStrategy {
   private static final class FibonacciRetryStrategy extends RetryStrategy {
     private final long multiplier;
 
-    FibonacciRetryStrategy(long multiplier, int maxRetryTimes, long maxDelay,
-                           List<Class<? extends Throwable>> retryOn,
-                           List<Class<? extends Throwable>> stopAt,
-                           boolean useRandom, boolean retryOnNull) {
+    FibonacciRetryStrategy(
+        long multiplier,
+        int maxRetryTimes,
+        long maxDelay,
+        List<Class<? extends Throwable>> retryOn,
+        List<Class<? extends Throwable>> stopAt,
+        boolean useRandom,
+        boolean retryOnNull) {
       super(maxRetryTimes, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
       this.multiplier = multiplier;
     }
@@ -225,9 +245,13 @@ public abstract class RetryStrategy {
   private static final class FixedDelayRetryStrategy extends RetryStrategy {
     private final long delay;
 
-    FixedDelayRetryStrategy(long delay, int maxRetryTimes, List<Class<? extends Throwable>> retryOn,
-                            List<Class<? extends Throwable>> stopAt, boolean useRandom,
-                            boolean retryOnNull) {
+    FixedDelayRetryStrategy(
+        long delay,
+        int maxRetryTimes,
+        List<Class<? extends Throwable>> retryOn,
+        List<Class<? extends Throwable>> stopAt,
+        boolean useRandom,
+        boolean retryOnNull) {
       super(maxRetryTimes, -1L, retryOn, stopAt, useRandom, retryOnNull);
       this.delay = delay;
     }
@@ -242,10 +266,15 @@ public abstract class RetryStrategy {
     private final long initialDelay;
     private final long increment;
 
-    IncrementalDelayRetryStrategy(long initialDelay, long increment, int maxRetryTimes,
-                                  long maxDelay, List<Class<? extends Throwable>> retryOn,
-                                  List<Class<? extends Throwable>> stopAt,
-                                  boolean useRandom, boolean retryOnNull) {
+    IncrementalDelayRetryStrategy(
+        long initialDelay,
+        long increment,
+        int maxRetryTimes,
+        long maxDelay,
+        List<Class<? extends Throwable>> retryOn,
+        List<Class<? extends Throwable>> stopAt,
+        boolean useRandom,
+        boolean retryOnNull) {
       super(maxRetryTimes, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
       this.initialDelay = initialDelay;
       this.increment = increment;
@@ -280,9 +309,7 @@ public abstract class RetryStrategy {
     return new Builder();
   }
 
-  /**
-   * RetryStrategy builder.
-   */
+  /** RetryStrategy builder. */
   public static final class Builder {
     private Type type;
     private long initialDelay;
@@ -317,7 +344,7 @@ public abstract class RetryStrategy {
      * Retry with increment delay.
      *
      * @param initialDelay initial delay
-     * @param delay        increment of delay
+     * @param delay increment of delay
      * @return builder
      */
     public Builder incrementDelay(long initialDelay, long delay) {
@@ -443,17 +470,17 @@ public abstract class RetryStrategy {
     public RetryStrategy build() {
       switch (type) {
         case FIXED_DELAY:
-          return new FixedDelayRetryStrategy(delay, maxRetry, retryOn, stopAt, useRandom,
-              retryOnNull);
+          return new FixedDelayRetryStrategy(
+              delay, maxRetry, retryOn, stopAt, useRandom, retryOnNull);
         case INCREMENTAL_DELAY:
-          return new IncrementalDelayRetryStrategy(initialDelay, delay, maxRetry, maxDelay,
-              retryOn, stopAt, useRandom, retryOnNull);
+          return new IncrementalDelayRetryStrategy(
+              initialDelay, delay, maxRetry, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
         case EXPONENTIAL:
-          return new ExponentialRetryStrategy(multiplier, maxRetry, maxDelay, retryOn,
-              stopAt, useRandom, retryOnNull);
+          return new ExponentialRetryStrategy(
+              multiplier, maxRetry, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
         case FIBONACCI:
-          return new FibonacciRetryStrategy(multiplier, maxRetry, maxDelay, retryOn,
-              stopAt, useRandom, retryOnNull);
+          return new FibonacciRetryStrategy(
+              multiplier, maxRetry, maxDelay, retryOn, stopAt, useRandom, retryOnNull);
         default:
           throw new IllegalStateException("Unknown retry strategy type.");
       }
