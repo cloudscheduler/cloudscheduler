@@ -14,21 +14,21 @@ buildscript {
     dependencies {
         classpath 'com.netflix.nebula:gradle-lint-plugin:16.5.2'
         classpath 'gradle.plugin.com.github.sherter.google-java-format:google-java-format-gradle-plugin:0.8'
+        classpath 'com.netflix.nebula:gradle-dependency-lock-plugin:4.+'
     }
 }
 
 ext {
     zookeeperVersion = '3.4.+'
     slf4jVersion = '1.7.+'
-    jacksonVersion = '2.10.+'
-    protostuffVersion = '1.7.+'
+    jacksonVersion = '2.+'
+    protostuffVersion = '1.+'
     springVersion = '5.+'
 
-    junitVersion = '5.6.+'
-    curatorVersion = '4.3.0'
-    javassitVersion = '3.24.+'
-    log4jVersion = '2.12.+'
-    assertjVersion = '3.15.+'
+    junitVersion = '5.+'
+    curatorVersion = '4.+'
+    log4jVersion = '2.+'
+    assertjVersion = '3.+'
 
     jacocoVersion = '0.8.+'
 }
@@ -38,6 +38,7 @@ allprojects {
     version = '1.0.3-SNAPSHOT'
 
     apply plugin: 'nebula.lint'
+    apply plugin: 'nebula.dependency-lock'
 }
 
 subprojects {

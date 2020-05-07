@@ -1,0 +1,211 @@
+{
+    "compileClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "org.springframework:spring-beans": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-context": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        }
+    },
+    "default": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "project": true
+        },
+        "io.github.cloudscheduler:cloudscheduler-core": {
+            "project": true
+        },
+        "org.apache.zookeeper:zookeeper": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "3.4.14"
+        },
+        "org.slf4j:slf4j-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "1.7.30"
+        },
+        "org.springframework:spring-beans": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-context": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        }
+    },
+    "jacocoAgent": {
+        "org.jacoco:org.jacoco.agent": {
+            "locked": "0.8.5"
+        }
+    },
+    "jacocoAnt": {
+        "org.jacoco:org.jacoco.ant": {
+            "locked": "0.8.5"
+        }
+    },
+    "runtimeClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "project": true
+        },
+        "io.github.cloudscheduler:cloudscheduler-core": {
+            "project": true
+        },
+        "org.apache.zookeeper:zookeeper": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "3.4.14"
+        },
+        "org.slf4j:slf4j-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "1.7.30"
+        },
+        "org.springframework:spring-beans": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-context": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        }
+    },
+    "testCompileClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "io.github.cloudscheduler:cloudscheduler-core": {
+            "project": true
+        },
+        "org.apache.curator:curator-test": {
+            "locked": "4.3.0",
+            "requested": "4.+"
+        },
+        "org.apache.zookeeper:zookeeper": {
+            "locked": "3.5.7",
+            "requested": "3.4.+"
+        },
+        "org.assertj:assertj-core": {
+            "locked": "3.16.0",
+            "requested": "3.+"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-beans": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-context": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-core": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        }
+    },
+    "testRuntimeClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-codec-protobuf",
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "project": true
+        },
+        "io.github.cloudscheduler:cloudscheduler-codec-protobuf": {
+            "project": true
+        },
+        "io.github.cloudscheduler:cloudscheduler-core": {
+            "project": true
+        },
+        "io.protostuff:protostuff-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-codec-protobuf"
+            ],
+            "locked": "1.7.2"
+        },
+        "io.protostuff:protostuff-collectionschema": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-codec-protobuf"
+            ],
+            "locked": "1.7.2"
+        },
+        "io.protostuff:protostuff-core": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-codec-protobuf"
+            ],
+            "locked": "1.7.2"
+        },
+        "io.protostuff:protostuff-runtime": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-codec-protobuf"
+            ],
+            "locked": "1.7.2"
+        },
+        "org.apache.curator:curator-test": {
+            "locked": "4.3.0",
+            "requested": "4.+"
+        },
+        "org.apache.logging.log4j:log4j-core": {
+            "locked": "2.13.2",
+            "requested": "2.+"
+        },
+        "org.apache.logging.log4j:log4j-slf4j-impl": {
+            "locked": "2.13.2",
+            "requested": "2.+"
+        },
+        "org.apache.zookeeper:zookeeper": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "3.5.7",
+            "requested": "3.4.+"
+        },
+        "org.assertj:assertj-core": {
+            "locked": "3.16.0",
+            "requested": "3.+"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        },
+        "org.junit.jupiter:junit-jupiter-engine": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        },
+        "org.slf4j:slf4j-api": {
+            "firstLevelTransitive": [
+                "io.github.cloudscheduler:cloudscheduler-core"
+            ],
+            "locked": "1.7.30"
+        },
+        "org.springframework:spring-beans": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-context": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        },
+        "org.springframework:spring-core": {
+            "locked": "5.2.6.RELEASE",
+            "requested": "5.+"
+        }
+    }
+}

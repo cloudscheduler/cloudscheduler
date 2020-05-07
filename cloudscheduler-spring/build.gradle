@@ -13,9 +13,9 @@ dependencies {
     testImplementation group: 'org.apache.curator', name: 'curator-test', version: curatorVersion
     testRuntimeOnly group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: log4jVersion
     testRuntimeOnly group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
-    implementation 'org.springframework:spring-beans:5.2.5.RELEASE'
-    testImplementation 'org.apache.zookeeper:zookeeper:3.4.8'
-    testImplementation 'org.springframework:spring-core:5.2.5.RELEASE'
+    implementation group: 'org.springframework', name: 'spring-beans', version: springVersion
+    testImplementation group: 'org.apache.zookeeper', name: 'zookeeper', version: zookeeperVersion
+    testImplementation group: 'org.springframework', name: 'spring-core', version: springVersion
 }
 
 description = 'Cloud Scheduler spring module'
