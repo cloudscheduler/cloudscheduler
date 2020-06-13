@@ -67,7 +67,7 @@ subprojects {
 
     googleJavaFormat {
         source = 'src/main'
-        source = 'src/test'
+        source += 'src/test'
         include '**/*.java'
     }
 
