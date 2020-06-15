@@ -113,7 +113,7 @@ public class SchedulerWorkerConnectTest {
         jobIn = jobService.getJobInstanceById(jobIn.getId());
         assertThat(jobIn).isNotNull();
         assertThat(jobIn.getJobState()).isEqualTo(JobInstanceState.SCHEDULED);
-        assertThat(jobInCompleteCounter.await(1500L, TimeUnit.MILLISECONDS)).isTrue();
+        assertThat(jobInCompleteCounter.await(2500L, TimeUnit.MILLISECONDS)).isTrue();
         jobIn = jobService.getJobInstanceById(jobIn.getId());
         assertThat(jobIn);
         assertThat(jobIn.getJobState()).isEqualTo(JobInstanceState.COMPLETE);
