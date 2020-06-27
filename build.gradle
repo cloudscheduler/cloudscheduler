@@ -100,12 +100,12 @@ subprojects {
 
     signing {
         useGpgCmd()
-        sign publishing.publications.mavenJava
+        sign publishing.publications
     }
 
     publishing {
         publications {
-            mavenJava(MavenPublication) {
+            maven(MavenPublication) {
                 from(components.java)
                 artifact(sourcesJar)
                 artifact(javadocJar)
