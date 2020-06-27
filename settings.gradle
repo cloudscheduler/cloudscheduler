@@ -8,3 +8,10 @@ include(':cloudscheduler-codec-json')
 include(':cloudscheduler-codec-protobuf')
 include(':cloudscheduler-core')
 include(':cloudscheduler-spring')
+
+gradleEnterprise {
+    buildScan {
+        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+        termsOfServiceAgree = 'yes'
+    }
+}
