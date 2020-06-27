@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 if [ "$TRAVIS_PULL_REQUEST" == 'false' ]; then
-    mvn deploy -DskipTests -P sign,build-extras --settings cd/travis-settings.xml
+    ./gradlew publish
 fi

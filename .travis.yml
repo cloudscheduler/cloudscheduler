@@ -14,7 +14,7 @@ env:
   - secure: sNZaDpmKO8OTAVYbnkLkrIFs3pU6ls1wDy7GK3A+vah0iR28vQwvNE6EM8fU84nBA1K+WNS71PBt24tL43sbZHT4nqxOyQpEFTgsx1rjDU4eBLv5x778qk5y19mFH08xB1BsMkoRMuuvCBPz7Qh2TdBZSrg2FYJaQIb2H30VchV6fI7iYCBHuuZzk9/5YwfHFsEshzUqxRXV24/LahEQrsnCKz6Gg/JCx4rOUD106vR2+nLTk2c4GY64rjH/Jm7Eq+wLt5i2B2lwLD+lGjY68BrI4OTa0oWJxBALi1Jxh5UefiYNHmrx4BykZw3lVfTo+QIfcuJDbAikCszXBJqmpebGmuioiFvycWXDApXl6ZNWISr8UC+woqhiRN00puz0F0k+kez81WenOdMkdyi8SxeGP2W2x6Ty4VOoFZPz2LNA4+L/QDGqLWIXotjVfIP/CGUPtb2yPqBIfc57HftfbB2kJbGMm57ONanPibFi70ImzQt4yxvhS7GdBtw7LTOA16XqM4k3rAPRznG7fVP/ap5iqIFpR/bJveAUyP+MiSUDno3wNzChWs5vODTrPb4GblNbY3GXacvrujQTT0ogq8SolYHWMwM3zU4dkru6ZNPy0RL54XhOE1UjMk+JARr/CCEzdfcHkcG/+kPQ61FSYo64JieVGPYlWNW42Y3f5gE=
 
 script:
-- ./gradlew build
+- ./gradlew build --scan -s
 
 before_cache:
   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -25,6 +25,6 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
 
-#after_success:
-#  - ./cd/before-deploy.sh
-#  - ./cd/deploy.sh
+after_success:
+  - ./cd/before-deploy.sh
+  - ./cd/deploy.sh

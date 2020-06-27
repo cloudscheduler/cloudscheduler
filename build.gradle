@@ -70,6 +70,12 @@ subprojects {
         include '**/*.java'
     }
 
+    javadoc {
+        if(JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption('html5', true)
+        }
+    }
+
     task sourcesJar(type: Jar) {
         archiveClassifier = 'sources'
         from sourceSets.main.allJava
