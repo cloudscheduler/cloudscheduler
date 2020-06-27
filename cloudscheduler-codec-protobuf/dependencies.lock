@@ -16,27 +16,6 @@
             "requested": "1.+"
         }
     },
-    "default": {
-        "io.github.cloudscheduler:cloudscheduler-api": {
-            "project": true
-        },
-        "io.protostuff:protostuff-api": {
-            "locked": "1.7.2",
-            "requested": "1.+"
-        },
-        "io.protostuff:protostuff-collectionschema": {
-            "locked": "1.7.2",
-            "requested": "1.+"
-        },
-        "io.protostuff:protostuff-core": {
-            "locked": "1.7.2",
-            "requested": "1.+"
-        },
-        "io.protostuff:protostuff-runtime": {
-            "locked": "1.7.2",
-            "requested": "1.+"
-        }
-    },
     "jacocoAgent": {
         "org.jacoco:org.jacoco.agent": {
             "locked": "0.8.5"
@@ -85,7 +64,7 @@
             "requested": "1.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
@@ -114,7 +93,7 @@
             "requested": "1.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {

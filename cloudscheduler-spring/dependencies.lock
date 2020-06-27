@@ -4,42 +4,11 @@
             "project": true
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.6.RELEASE",
-            "requested": "5.+"
-        }
-    },
-    "default": {
-        "io.github.cloudscheduler:cloudscheduler-api": {
-            "firstLevelTransitive": [
-                "io.github.cloudscheduler:cloudscheduler-core"
-            ],
-            "project": true
-        },
-        "io.github.cloudscheduler:cloudscheduler-core": {
-            "project": true
-        },
-        "org.apache.zookeeper:zookeeper": {
-            "firstLevelTransitive": [
-                "io.github.cloudscheduler:cloudscheduler-core"
-            ],
-            "locked": "3.4.14"
-        },
-        "org.slf4j:slf4j-api": {
-            "firstLevelTransitive": [
-                "io.github.cloudscheduler:cloudscheduler-core"
-            ],
-            "locked": "1.7.30"
-        },
-        "org.springframework:spring-beans": {
-            "locked": "5.2.6.RELEASE",
-            "requested": "5.+"
-        },
-        "org.springframework:spring-context": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         }
     },
@@ -76,11 +45,11 @@
             "locked": "1.7.30"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         }
     },
@@ -92,15 +61,15 @@
             "project": true
         },
         "org.apache.curator:curator-test": {
-            "locked": "4.3.0",
-            "requested": "4.+"
+            "locked": "5.0.0",
+            "requested": "5.+"
         },
         "org.apache.zookeeper:zookeeper": {
-            "locked": "3.5.7",
+            "locked": "3.6.0",
             "requested": "3.4.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
@@ -108,15 +77,15 @@
             "requested": "5.+"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-core": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         }
     },
@@ -159,26 +128,26 @@
             "locked": "1.7.2"
         },
         "org.apache.curator:curator-test": {
-            "locked": "4.3.0",
-            "requested": "4.+"
+            "locked": "5.0.0",
+            "requested": "5.+"
         },
         "org.apache.logging.log4j:log4j-core": {
-            "locked": "2.13.2",
+            "locked": "2.13.3",
             "requested": "2.+"
         },
         "org.apache.logging.log4j:log4j-slf4j-impl": {
-            "locked": "2.13.2",
+            "locked": "2.13.3",
             "requested": "2.+"
         },
         "org.apache.zookeeper:zookeeper": {
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-core"
             ],
-            "locked": "3.5.7",
+            "locked": "3.6.0",
             "requested": "3.4.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
@@ -196,15 +165,15 @@
             "locked": "1.7.30"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-core": {
-            "locked": "5.2.6.RELEASE",
+            "locked": "5.2.7.RELEASE",
             "requested": "5.+"
         }
     }

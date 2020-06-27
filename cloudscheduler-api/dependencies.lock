@@ -11,7 +11,7 @@
     },
     "testCompileClasspath": {
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
@@ -21,7 +21,7 @@
     },
     "testRuntimeClasspath": {
         "org.assertj:assertj-core": {
-            "locked": "3.16.0",
+            "locked": "3.16.1",
             "requested": "3.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {

@@ -175,7 +175,7 @@ public interface JobService {
     } catch (ExecutionException e) {
       throw e.getCause();
     }
-  };
+  }
 
   CompletableFuture<List<JobDefinition>> listAllJobDefinitionsAsync();
 
