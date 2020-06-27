@@ -99,18 +99,37 @@ subprojects {
     }
 
     signing {
-        def signingKey = System.getenv('GPG_KEY_NAME')
-        def signingPassword = System.getenv('GPG_PASSPHRASE')
-        useInMemoryPgpKeys(signingKey, signingPassword)
-        sign publishing.publications
+        useGpgCmd()
+        sign publishing.publications.mavenJava
     }
 
     publishing {
         publications {
-            maven(MavenPublication) {
+            mavenJava(MavenPublication) {
                 from(components.java)
                 artifact(sourcesJar)
                 artifact(javadocJar)
+                pom {
+                    url = 'https://github.com/cloudscheduler/cloudscheduler'
+                    licenses {
+                        license {
+                            name = 'MIT License'
+                            url = 'http://www.opensource.org/licenses/mit-license.php'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'noodle05'
+                            name = 'Wei Gao'
+                            email = 'wei@gaofamily.org'
+                        }
+                    }
+                    scm {
+                        url = 'https://github.com/cloudscheduler/cloudscheduler'
+                        connection = 'scm:git:git@github.com:cloudscheduler/cloudscheduler.git'
+                        developerConnection = 'scm:git:git@github.com:cloudscheduler/cloudscheduler.git'
+                    }
+                }
             }
         }
 
