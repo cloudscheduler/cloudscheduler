@@ -24,183 +24,171 @@
 
 package io.github.cloudscheduler.model;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobExecutionContext;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import org.junit.jupiter.api.Test;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class JobDefinitionBuilderTest {
   @Test
   public void testBasic() {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .build();
-    Assert.assertNotNull(job.getId());
-    Assert.assertEquals(job.getName(), job.getId().toString());
-    Assert.assertEquals(job.getMode(), ScheduleMode.START_NOW);
-    Assert.assertNull(job.getStartTime());
-    Assert.assertNull(job.getCron());
-    Assert.assertNull(job.getRate());
-    Assert.assertNull(job.getDelay());
-    Assert.assertNull(job.getRepeat());
-    Assert.assertNull(job.getEndTime());
+    JobDefinition job = JobDefinition.newBuilder(TestJob.class).build();
+    assertThat(job.getId()).isNotNull();
+    assertThat(job.getName()).isEqualTo(job.getId().toString());
+    assertThat(job.getMode()).isEqualTo(ScheduleMode.START_NOW);
+    assertThat(job.getStartTime()).isNull();
+
+    assertThat(job.getCron()).isNull();
+    assertThat(job.getRate()).isNull();
+    assertThat(job.getDelay()).isNull();
+    assertThat(job.getRepeat()).isNull();
+    assertThat(job.getEndTime()).isNull();
   }
 
   @Test
   public void testDifferentOrder() {
-    JobDefinition job1 = JobDefinition.newBuilder(TestJob.class)
-        .name("TestJob")
-        .initialDelay(Duration.ofHours(1))
-        .fixedRate(Duration.ofHours(5))
-        .repeat(50)
-        .runNow() // Override initial delay
-        .build();
-    JobDefinition job2 = JobDefinition.newBuilder(TestJob.class)
-        .name("TestJob")
-        .fixedRate(Duration.ofHours(5))
-        .repeat(50)
-        .build();
-    compare(job1, job2);
+    JobDefinition job1 =
+        JobDefinition.newBuilder(TestJob.class)
+            .name("TestJob")
+            .initialDelay(Duration.ofHours(1))
+            .fixedRate(Duration.ofHours(5))
+            .repeat(50)
+            .runNow() // Override initial delay
+            .build();
+    JobDefinition job2 =
+        JobDefinition.newBuilder(TestJob.class)
+            .name("TestJob")
+            .fixedRate(Duration.ofHours(5))
+            .repeat(50)
+            .build();
+    assertThat(job1).isEqualToIgnoringGivenFields(job2, "id");
   }
 
   @Test
   public void testExclusiveRateAndDelay() {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .name("TestJob")
-        .initialDelay(Duration.ofHours(1))
-        .fixedRate(Duration.ofHours(5))
-        .fixedDelay(Duration.ofMinutes(10))
-        .repeat(50)
-        .runNow() // Override initial delay
-        .build();
-    Assert.assertNull(job.getRate());
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .name("TestJob")
+            .initialDelay(Duration.ofHours(1))
+            .fixedRate(Duration.ofHours(5))
+            .fixedDelay(Duration.ofMinutes(10))
+            .repeat(50)
+            .runNow() // Override initial delay
+            .build();
+    assertThat(job.getRate()).isNull();
   }
 
-  @Test(expectedExceptions = IllegalStateException.class)
+  @Test
   public void testRepeatWithoutRateOrDelay() {
-    // Repeat without interval and cron
-    JobDefinition.newBuilder(TestJob.class)
-        .runNow()
-        .repeat(50)
-        .build();
+    assertThatIllegalStateException()
+        .isThrownBy(
+            () -> {
+              // Repeat without interval and cron
+              JobDefinition.newBuilder(TestJob.class).runNow().repeat(50).build();
+            });
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class)
+  @Test
   public void testIllegalRate() {
-    JobDefinition.newBuilder(TestJob.class)
-        .fixedRate(Duration.ofSeconds(1))
-        .build();
+    assertThatIllegalArgumentException()
+        .isThrownBy(
+            () -> JobDefinition.newBuilder(TestJob.class).fixedRate(Duration.ofSeconds(1)).build());
   }
 
   @Test
   public void testCron() {
-    JobDefinition.newBuilder(TestJob.class)
-        .cron("0 0 * * *")
-        .build();
+    JobDefinition.newBuilder(TestJob.class).cron("0 0 * * *").build();
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class)
+  @Test
   public void testInvalidCron() {
-    JobDefinition.newBuilder(TestJob.class)
-        .cron("0 0 a * * *")
-        .build();
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> JobDefinition.newBuilder(TestJob.class).cron("0 0 a * * *").build());
   }
 
   @Test
   public void testGlobal() {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .startAt(Instant.now().plus(1, ChronoUnit.MINUTES))
-        .global()
-        .build();
-    Assert.assertTrue(job.isGlobal());
-    job = JobDefinition.newBuilder(TestJob.class)
-        .jobData("test", "Test value")
-        .global(false)
-        .build();
-    Assert.assertFalse(job.isGlobal());
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .startAt(Instant.now().plus(1, ChronoUnit.MINUTES))
+            .global()
+            .build();
+    assertThat(job.isGlobal()).isTrue();
+    job =
+        JobDefinition.newBuilder(TestJob.class).jobData("test", "Test value").global(false).build();
+    assertThat(job.isGlobal()).isFalse();
   }
 
   @Test
   public void testAllowDuplicateInstance() {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .allowDupInstances()
-        .build();
-    Assert.assertTrue(job.isAllowDupInstances());
-    job = JobDefinition.newBuilder(TestJob.class)
-        .allowDupInstances(false)
-        .build();
-    Assert.assertFalse(job.isAllowDupInstances());
+    JobDefinition job = JobDefinition.newBuilder(TestJob.class).allowDupInstances().build();
+    assertThat(job.isAllowDupInstances()).isTrue();
+    job = JobDefinition.newBuilder(TestJob.class).allowDupInstances(false).build();
+    assertThat(job.isAllowDupInstances()).isFalse();
   }
 
   @Test
   public void testHashCode() {
     String jobName = "jobName";
-    JobDefinition job1 = JobDefinition.newBuilder(TestJob.class)
-        .name(jobName)
-        .build();
-    JobDefinition job2 = JobDefinition.newBuilder(TestJob.class)
-        .name(jobName)
-        .build();
-    Assert.assertNotEquals(job1.hashCode(), job2.hashCode());
+    JobDefinition job1 = JobDefinition.newBuilder(TestJob.class).name(jobName).build();
+    JobDefinition job2 = JobDefinition.newBuilder(TestJob.class).name(jobName).build();
+    assertThat(job1.hashCode()).isNotEqualTo(job2.hashCode());
   }
 
   @Test
   public void testEquals() {
     String jobName = "jobName";
     UUID id = UUID.randomUUID();
-    JobDefinition job1 = JobDefinition.newBuilder(TestJob.class)
-        .name(jobName)
-        .build();
-    JobDefinition job2 = JobDefinition.newBuilder(TestJob.class)
-        .name(jobName)
-        .build();
-    Assert.assertNotEquals(job1, job2);
-    job1 = new JobDefinition(id, TestJob.class, "jobName1", null,
-        ScheduleMode.START_AT, null, null, null, null,
-        null, null,null, false, false);
-    job2 = new JobDefinition(id, TestJob.class, "jobName2", null,
-        ScheduleMode.START_NOW, null, null, null, null,
-        null, null, null, true, true);
-    Assert.assertEquals(job1, job2);
+    JobDefinition job1 = JobDefinition.newBuilder(TestJob.class).name(jobName).build();
+    JobDefinition job2 = JobDefinition.newBuilder(TestJob.class).name(jobName).build();
+    assertThat(job1).isNotEqualTo(job2);
+    job1 =
+        new JobDefinition(
+            id,
+            TestJob.class,
+            "jobName1",
+            null,
+            ScheduleMode.START_AT,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            false);
+    job2 =
+        new JobDefinition(
+            id,
+            TestJob.class,
+            "jobName2",
+            null,
+            ScheduleMode.START_NOW,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            true,
+            true);
+    assertThat(job1).isEqualTo(job2);
   }
 
   @Test
   public void testToString() {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .name("jobName")
-        .build();
-    Assert.assertNotNull(job.toString());
-  }
-
-  private void compare(JobDefinition actual, JobDefinition expected) {
-    if (actual == null && expected == null) {
-      return;
-    }
-    if (actual == null) {
-      Assert.fail("Actual is null");
-    }
-    if (expected == null) {
-      Assert.fail("Expected is null but actual is not");
-    }
-    Assert.assertEquals(actual.getJobClass(), expected.getJobClass());
-    Assert.assertEquals(actual.getName(), expected.getName());
-    Assert.assertEquals(actual.getMode(), expected.getMode());
-    Assert.assertEquals(actual.getCron(), expected.getCron());
-    Assert.assertEquals(actual.getStartTime(), expected.getStartTime());
-    Assert.assertEquals(actual.getRate(), expected.getRate());
-    Assert.assertEquals(actual.getDelay(), expected.getDelay());
-    Assert.assertEquals(actual.getData(), expected.getData());
-    Assert.assertEquals(actual.getRepeat(), expected.getRepeat());
-    Assert.assertEquals(actual.getEndTime(), expected.getEndTime());
-    Assert.assertEquals(actual.isGlobal(), expected.isGlobal());
+    JobDefinition job = JobDefinition.newBuilder(TestJob.class).name("jobName").build();
+    assertThat(job.toString()).isNotNull();
   }
 
   static class TestJob implements Job {

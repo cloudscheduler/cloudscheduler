@@ -72,7 +72,8 @@ class JobDefinitionProcessor implements AsyncService {
   private CompletableFuture<?> listenerJob;
   private JobDefinitionState jobDefState;
 
-  JobDefinitionProcessor(JobDefinition jobDef,
+  JobDefinitionProcessor(
+      JobDefinition jobDef,
       ExecutorService threadPool,
       JobService jobService,
       JobFactory jobFactory,
@@ -92,14 +93,15 @@ class JobDefinitionProcessor implements AsyncService {
     this.scheduled = new AtomicBoolean(false);
     this.observer = observer;
     listenerJob = CompletableFuture.completedFuture(null);
-    statusListener = event -> {
-      if (running.get()) {
-        if (event == EventType.ENTITY_UPDATED) {
-          logger.trace("Status entity updated.");
-          onStatusChanged();
-        }
-      }
-    };
+    statusListener =
+        event -> {
+          if (running.get()) {
+            if (event == EventType.ENTITY_UPDATED) {
+              logger.trace("Status entity updated.");
+              onStatusChanged();
+            }
+          }
+        };
   }
 
   void start() {
@@ -114,19 +116,24 @@ class JobDefinitionProcessor implements AsyncService {
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutdown JobDefinition processor for id: {}", jobDef.getId());
-      return listenerJob.exceptionally(e -> {
-        logger.debug("Error happened in status listener", e);
-        return null;
-      }).thenAccept(v -> {
-        if (scheduledFuture != null) {
-          if (scheduledFuture.cancel(true)) {
-            logger.debug("Scheduled future got cancelled.");
-          } else {
-            logger.debug("Scheduled future already done or already cancelled.");
-          }
-        }
-      }).whenComplete((v, cause) -> logger.info("Job definition processor down {}.",
-          jobDef.getId()))
+      return listenerJob
+          .exceptionally(
+              e -> {
+                logger.debug("Error happened in status listener", e);
+                return null;
+              })
+          .thenAccept(
+              v -> {
+                if (scheduledFuture != null) {
+                  if (scheduledFuture.cancel(true)) {
+                    logger.debug("Scheduled future got cancelled.");
+                  } else {
+                    logger.debug("Scheduled future already done or already cancelled.");
+                  }
+                }
+              })
+          .whenComplete(
+              (v, cause) -> logger.info("Job definition processor down {}.", jobDef.getId()))
           .thenApply(v -> null);
     } else {
       return CompletableFuture.completedFuture(null);
@@ -135,136 +142,169 @@ class JobDefinitionProcessor implements AsyncService {
 
   private CompletableFuture<Void> scheduleNextJobInstance() {
     logger.trace("Scheduling next job instance for job definition: {}.", jobDef.getId());
-    return jobService.getJobStatusByIdAsync(jobDef.getId()).thenComposeAsync(status ->
-        calculateNextRunTime(jobDef, status)
-            .thenCompose(time -> {
-              if (time == null) {
-                return CompletableFuture.completedFuture(null);
-              } else {
-                Duration d = Duration.between(Instant.now(), time);
-                if (d.isZero() || d.isNegative()) {
-                  return scheduleJobInstance();
-                } else {
-                  if (scheduled.compareAndSet(false, true)) {
-                    logger.trace("Schedule scheduleJobInstance after: {}", d);
-                    scheduledFuture = CompletableFutureUtils.completeAfter(d, null).thenCompose(
-                        n -> {
-                          logger.trace("Time to schedule job instance.");
-                          scheduled.set(false);
-                          return scheduleJobInstance();
-                        });
-                  }
-                  return CompletableFuture.completedFuture(null);
-                }
-              }
-            }), threadPool).thenApply(v -> null);
+    return jobService
+        .getJobStatusByIdAsync(jobDef.getId())
+        .thenComposeAsync(
+            status ->
+                calculateNextRunTime(jobDef, status)
+                    .thenCompose(
+                        time -> {
+                          if (time == null) {
+                            return CompletableFuture.completedFuture(null);
+                          } else {
+                            Duration d = Duration.between(Instant.now(), time);
+                            if (d.isZero() || d.isNegative()) {
+                              return scheduleJobInstance();
+                            } else {
+                              if (scheduled.compareAndSet(false, true)) {
+                                logger.trace("Schedule scheduleJobInstance after: {}", d);
+                                scheduledFuture =
+                                    CompletableFutureUtils.completeAfter(d, null)
+                                        .thenCompose(
+                                            n -> {
+                                              logger.trace("Time to schedule job instance.");
+                                              scheduled.set(false);
+                                              return scheduleJobInstance();
+                                            });
+                              }
+                              return CompletableFuture.completedFuture(null);
+                            }
+                          }
+                        }),
+            threadPool)
+        .thenApply(v -> null);
   }
 
   private CompletableFuture<JobInstance> scheduleJobInstance() {
     logger.trace("Processing create job instance.");
-    return jobService.getJobStatusByIdAsync(jobDef.getId()).thenComposeAsync(status -> {
-      boolean completed = true;
-      for (Map.Entry<UUID, JobInstanceState> entry : status.getJobInstanceState()
-          .entrySet()) {
-        if (!entry.getValue().isComplete(jobDef.isGlobal())) {
-          completed = false;
-          break;
-        }
-      }
-      if (completed || jobDef.isAllowDupInstances()) {
-        logger.trace("Creating JobInstance");
-        return jobService.scheduleJobInstanceAsync(jobDef).thenApplyAsync(ji -> {
-          observer.jobInstanceScheduled(jobDef.getId(), ji.getId(), Instant.now());
-          return ji;
-        }, threadPool);
-      } else {
-        logger.trace("Previous JobInstance not complete, will not create JobInstance");
-        return CompletableFuture.completedFuture(null);
-      }
-    }, threadPool).whenComplete((v, cause) -> {
-      if (cause != null) {
-        logger.error("Error happened when schedule job instance.", cause);
-      }
-      if (jobDef.getDelay() == null) {
-        logger.trace("Schedule next time");
-        listenerJob = listenerJob.thenCompose(n -> scheduleNextJobInstance());
-      }
-    });
+    return jobService
+        .getJobStatusByIdAsync(jobDef.getId())
+        .thenComposeAsync(
+            status -> {
+              boolean completed = true;
+              for (Map.Entry<UUID, JobInstanceState> entry :
+                  status.getJobInstanceState().entrySet()) {
+                if (!entry.getValue().isComplete(jobDef.isGlobal())) {
+                  completed = false;
+                  break;
+                }
+              }
+              if (completed || jobDef.isAllowDupInstances()) {
+                logger.trace("Creating JobInstance");
+                return jobService
+                    .scheduleJobInstanceAsync(jobDef)
+                    .thenApplyAsync(
+                        ji -> {
+                          observer.jobInstanceScheduled(jobDef.getId(), ji.getId(), Instant.now());
+                          return ji;
+                        },
+                        threadPool);
+              } else {
+                logger.trace("Previous JobInstance not complete, will not create JobInstance");
+                return CompletableFuture.completedFuture(null);
+              }
+            },
+            threadPool)
+        .whenComplete(
+            (v, cause) -> {
+              if (cause != null) {
+                logger.error("Error happened when schedule job instance.", cause);
+              }
+              if (jobDef.getDelay() == null) {
+                logger.trace("Schedule next time");
+                listenerJob = listenerJob.thenCompose(n -> scheduleNextJobInstance());
+              }
+            });
   }
 
   private void onStatusChanged() {
     logger.debug("JobDefinition status changed for id: {}", jobDef.getId());
     if (running.get()) {
-      listenerJob = listenerJob.thenCombine(jobService
-          .getJobStatusByIdAsync(jobDef.getId(), statusListener)
-          .thenComposeAsync(
-              status -> {
-                AtomicBoolean started = new AtomicBoolean(false);
-                if (jobDefState == null) {
-                  // started
-                  started.set(true);
-                } else if (!jobDefState.equals(status.getState())) {
-                  if (JobDefinitionState.CREATED.equals(status.getState())) {
-                    logger.trace("Job {} got resumed.", jobDef.getId());
-                    observer.jobDefinitionResumed(jobDef.getId(), Instant.now());
-                    started.set(true);
-                  } else if (jobDefState.equals(JobDefinitionState.CREATED)
-                      && status.getState().equals(JobDefinitionState.PAUSED)) {
-                    logger.trace("Job {} got paused.", jobDef.getId());
-                    if (scheduledFuture != null) {
-                      logger.trace("Cancel scheduler");
-                      if (scheduledFuture.cancel(true)) {
-                        logger.debug("Scheduled future got cancelled");
-                        scheduled.set(false);
-                      } else {
-                        logger.debug("Scheduled future is done or already cancelled");
-                      }
-                    }
-                    // paused
-                    observer.jobDefinitionPaused(jobDef.getId(), Instant.now());
-                  }
-                }
-                jobDefState = status.getState();
-                return jobService.cleanUpJobInstances(jobDef)
-                    .thenAcceptAsync(v -> {
-                      logger.debug("{} job instance removed.", v.size());
-                      if (!v.isEmpty()) {
-                        Instant now = Instant.now();
-                        for (JobInstance jobIn : v) {
-                          observer.jobInstanceRemoved(jobDef.getId(), jobIn.getId(), now);
-                        }
-                      }
-                    }, threadPool)
-                    .exceptionally(e -> {
-                      logger.error("Error happened when cleanup JobInstance of JobDefinition: {}",
-                          jobDef, e);
-                      return null;
-                    })
-                    // FIXME: Should we load JobDefinitionStatus again?
-                    // In case after we load and set listener, status changed, this may
-                    // cause schedule again?
-                    // Also, cleanup job instance more like just remove cleanup, shouldn't
-                    // Change the logic of detect job instance complete.
-                    //     .thenCompose(v -> jobService.getJobStatusByIdAsync(jobDef.getId()))
-                    .thenCompose(v -> {
-                      if (jobDefState.isActive()) {
-                        boolean completed = true;
-                        for (JobInstanceState s : status.getJobInstanceState().values()) {
-                          if (!s.isComplete(jobDef.isGlobal())) {
-                            completed = false;
-                            break;
+      listenerJob =
+          listenerJob.thenCombine(
+              jobService
+                  .getJobStatusByIdAsync(jobDef.getId(), statusListener)
+                  .thenComposeAsync(
+                      status -> {
+                        AtomicBoolean started = new AtomicBoolean(false);
+                        if (jobDefState == null) {
+                          // started
+                          started.set(true);
+                        } else if (!jobDefState.equals(status.getState())) {
+                          if (JobDefinitionState.CREATED.equals(status.getState())) {
+                            logger.trace("Job {} got resumed.", jobDef.getId());
+                            observer.jobDefinitionResumed(jobDef.getId(), Instant.now());
+                            started.set(true);
+                          } else if (jobDefState.equals(JobDefinitionState.CREATED)
+                              && status.getState().equals(JobDefinitionState.PAUSED)) {
+                            logger.trace("Job {} got paused.", jobDef.getId());
+                            if (scheduledFuture != null) {
+                              logger.trace("Cancel scheduler");
+                              if (scheduledFuture.cancel(true)) {
+                                logger.debug("Scheduled future got cancelled");
+                                scheduled.set(false);
+                              } else {
+                                logger.debug("Scheduled future is done or already cancelled");
+                              }
+                            }
+                            // paused
+                            observer.jobDefinitionPaused(jobDef.getId(), Instant.now());
                           }
                         }
-                        if (started.get() || (completed && jobDef.getDelay() != null
-                            && !scheduled.get())) {
-                          logger.trace("Schedule next job instance");
-                          return scheduleNextJobInstance();
-                        }
-                      }
-                      return CompletableFuture.completedFuture(null);
-                    });
-              },
-              threadPool), (a, b) -> null);
+                        jobDefState = status.getState();
+                        return jobService
+                            .cleanUpJobInstances(jobDef)
+                            .thenAcceptAsync(
+                                v -> {
+                                  logger.debug("{} job instance removed.", v.size());
+                                  if (!v.isEmpty()) {
+                                    Instant now = Instant.now();
+                                    for (JobInstance jobIn : v) {
+                                      observer.jobInstanceRemoved(
+                                          jobDef.getId(), jobIn.getId(), now);
+                                    }
+                                  }
+                                },
+                                threadPool)
+                            .exceptionally(
+                                e -> {
+                                  logger.error(
+                                      "Error happened when cleanup JobInstance of JobDefinition: {}",
+                                      jobDef,
+                                      e);
+                                  return null;
+                                })
+                            // FIXME: Should we load JobDefinitionStatus again?
+                            // In case after we load and set listener, status changed, this may
+                            // cause schedule again?
+                            // Also, cleanup job instance more like just remove cleanup, shouldn't
+                            // Change the logic of detect job instance complete.
+                            //     .thenCompose(v ->
+                            // jobService.getJobStatusByIdAsync(jobDef.getId()))
+                            .thenCompose(
+                                v -> {
+                                  if (jobDefState.isActive()) {
+                                    boolean completed = true;
+                                    for (JobInstanceState s :
+                                        status.getJobInstanceState().values()) {
+                                      if (!s.isComplete(jobDef.isGlobal())) {
+                                        completed = false;
+                                        break;
+                                      }
+                                    }
+                                    if (started.get()
+                                        || (completed
+                                            && jobDef.getDelay() != null
+                                            && !scheduled.get())) {
+                                      logger.trace("Schedule next job instance");
+                                      return scheduleNextJobInstance();
+                                    }
+                                  }
+                                  return CompletableFuture.completedFuture(null);
+                                });
+                      },
+                      threadPool),
+              (a, b) -> null);
     }
   }
 
@@ -274,10 +314,10 @@ class JobDefinitionProcessor implements AsyncService {
    * @param jobDef JobDefinition
    * @param status JobDefinition status
    * @return Next runtime, {@code null} if Job repeat or end time reached, no previous job instance
-   *         not complete and not allow duplicate job instance
+   *     not complete and not allow duplicate job instance
    */
-  private CompletableFuture<Instant> calculateNextRunTime(JobDefinition jobDef,
-      JobDefinitionStatus status) {
+  private CompletableFuture<Instant> calculateNextRunTime(
+      JobDefinition jobDef, JobDefinitionStatus status) {
     logger.trace("Calculating next runtime for JobDefinition: {}", jobDef.getId());
     if (status.getState().isActive()) {
       Instant now = Instant.now();
@@ -287,85 +327,95 @@ class JobDefinitionProcessor implements AsyncService {
         return completeJobDefinition(jobDef);
       }
       switch (jobDef.getMode()) {
-        case CRON: {
-          logger.trace("Cron job");
-          CronExpression cron;
-          if (cronExpression != null) {
-            cron = cronExpression;
-          } else {
-            cron = CronExpression.createWithoutSeconds(jobDef.getCron());
+        case CRON:
+          {
+            logger.trace("Cron job");
+            CronExpression cron;
+            if (cronExpression != null) {
+              cron = cronExpression;
+            } else {
+              cron = CronExpression.createWithoutSeconds(jobDef.getCron());
+            }
+            try {
+              Instant nextTime = cron.nextTimeAfter(ZonedDateTime.now()).toInstant();
+              return validateNextRuntime(jobDef, nextTime);
+            } catch (IllegalArgumentException e) {
+              logger.debug("Got IllegalArgumentException, no next runtime", e);
+              return completeJobDefinition(jobDef);
+            }
           }
-          try {
-            Instant nextTime = cron.nextTimeAfter(ZonedDateTime.now()).toInstant();
+        case CUSTOMIZED:
+          {
+            logger.trace("Customized calculator");
+            try {
+              JobScheduleCalculator calculator =
+                  jobFactory.createJobScheduleCalculator(jobDef.getCalculatorClass());
+              return CompletableFuture.supplyAsync(
+                      () -> calculator.calculateNextRunTime(jobDef, status), customerThreadPool)
+                  .exceptionally(
+                      exp -> {
+                        logger.debug(
+                            "Got error when calculate next runtime from customized calculator"
+                                + " of class: {}",
+                            jobDef.getCalculatorClass(),
+                            exp);
+                        return null;
+                      })
+                  .thenComposeAsync(
+                      nextTime -> {
+                        if (nextTime != null) {
+                          return validateNextRuntime(jobDef, nextTime);
+                        } else {
+                          return completeJobDefinition(jobDef);
+                        }
+                      },
+                      threadPool);
+            } catch (Throwable e) {
+              logger.debug(
+                  "Error when initial customized calculator of class: {}",
+                  jobDef.getCalculatorClass(),
+                  e);
+              return completeJobDefinition(jobDef);
+            }
+          }
+        default:
+          {
+            Duration interval;
+            Instant nextTime;
+            if (jobDef.getDelay() != null) {
+              interval = jobDef.getDelay();
+              nextTime = status.getLastCompleteTime();
+              if (nextTime == null) {
+                nextTime = jobDef.getStartTime();
+              }
+              if (nextTime == null) {
+                nextTime = now;
+              }
+            } else if (jobDef.getRate() != null) {
+              interval = jobDef.getRate();
+              nextTime = status.getLastScheduleTime();
+              if (nextTime == null) {
+                nextTime = jobDef.getStartTime();
+              }
+              if (nextTime == null) {
+                nextTime = now;
+              }
+            } else if (status.getLastScheduleTime() == null) {
+              nextTime = jobDef.getStartTime();
+              if (nextTime == null) {
+                nextTime = now;
+              }
+              logger.trace("Next runtime should be: {}", nextTime);
+              return CompletableFuture.completedFuture(nextTime);
+            } else {
+              logger.trace("No delay, no rate, there will be no next runtime");
+              return completeJobDefinition(jobDef);
+            }
+            while (nextTime.isBefore(now)) {
+              nextTime = nextTime.plus(interval);
+            }
             return validateNextRuntime(jobDef, nextTime);
-          } catch (IllegalArgumentException e) {
-            logger.debug("Got IllegalArgumentException, no next runtime", e);
-            return completeJobDefinition(jobDef);
           }
-        }
-        case CUSTOMIZED: {
-          logger.trace("Customized calculator");
-          try {
-            JobScheduleCalculator calculator = jobFactory
-                .createJobScheduleCalculator(jobDef.getCalculatorClass());
-            return CompletableFuture.supplyAsync(() ->
-                calculator.calculateNextRunTime(jobDef, status), customerThreadPool)
-                .exceptionally(exp -> {
-                  logger.debug("Got error when calculate next runtime from customized calculator"
-                          + " of class: {}", jobDef.getCalculatorClass(), exp);
-                  return null;
-                })
-                .thenComposeAsync(nextTime -> {
-                  if (nextTime != null) {
-                    return validateNextRuntime(jobDef, nextTime);
-                  } else {
-                    return completeJobDefinition(jobDef);
-                  }
-                }, threadPool);
-          } catch (Throwable e) {
-            logger.debug(
-                "Error when initial customized calculator of class: {}",
-                jobDef.getCalculatorClass(), e);
-            return completeJobDefinition(jobDef);
-          }
-        }
-        default: {
-          Duration interval;
-          Instant nextTime;
-          if (jobDef.getDelay() != null) {
-            interval = jobDef.getDelay();
-            nextTime = status.getLastCompleteTime();
-            if (nextTime == null) {
-              nextTime = jobDef.getStartTime();
-            }
-            if (nextTime == null) {
-              nextTime = now;
-            }
-          } else if (jobDef.getRate() != null) {
-            interval = jobDef.getRate();
-            nextTime = status.getLastScheduleTime();
-            if (nextTime == null) {
-              nextTime = jobDef.getStartTime();
-            }
-            if (nextTime == null) {
-              nextTime = now;
-            }
-          } else if (status.getLastScheduleTime() == null) {
-            nextTime = jobDef.getStartTime();
-            if (nextTime == null) {
-              nextTime = now;
-            }
-            logger.trace("Next runtime should be: {}", nextTime);
-            return CompletableFuture.completedFuture(nextTime);
-          } else {
-            logger.trace("No delay, no rate, there will be no next runtime");
-            return completeJobDefinition(jobDef);
-          }
-          while (nextTime.isBefore(now)) {
-            nextTime = nextTime.plus(interval);
-          }
-          return validateNextRuntime(jobDef, nextTime);
-        }
       }
     } else {
       logger.trace("JobDefinition is not active, no next runtime");
@@ -375,8 +425,8 @@ class JobDefinitionProcessor implements AsyncService {
 
   private CompletableFuture<Instant> validateNextRuntime(JobDefinition jobDef, Instant nextTime) {
     if (jobDef.getEndTime() != null && jobDef.getEndTime().isBefore(nextTime)) {
-      logger.trace("Next runtime {} after end time {}, no next runtime",
-          nextTime, jobDef.getEndTime());
+      logger.trace(
+          "Next runtime {} after end time {}, no next runtime", nextTime, jobDef.getEndTime());
       return completeJobDefinition(jobDef);
     }
     logger.trace("Next runtime should be: {}", nextTime);
@@ -384,9 +434,10 @@ class JobDefinitionProcessor implements AsyncService {
   }
 
   private CompletableFuture<Instant> completeJobDefinition(JobDefinition jobDef) {
-    return jobService.completeJobDefinitionAsync(jobDef)
-        .thenAcceptAsync(s -> observer.jobDefinitionCompleted(jobDef.getId(), Instant.now()),
-            threadPool)
+    return jobService
+        .completeJobDefinitionAsync(jobDef)
+        .thenAcceptAsync(
+            s -> observer.jobDefinitionCompleted(jobDef.getId(), Instant.now()), threadPool)
         .thenApply(n -> null);
   }
 }

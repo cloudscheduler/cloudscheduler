@@ -1,0 +1,209 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.netflix.nebula:gradle-lint-plugin:16.9.0'
+        classpath 'gradle.plugin.com.github.sherter.google-java-format:google-java-format-gradle-plugin:0.9'
+        classpath 'com.netflix.nebula:gradle-dependency-lock-plugin:9.2.0'
+    }
+}
+
+ext {
+    zookeeperVersion = '3.4.+'
+    slf4jVersion = '1.7.+'
+    jacksonVersion = '2.+'
+    protostuffVersion = '1.+'
+    springVersion = '5.+'
+
+    junitVersion = '5.+'
+    curatorVersion = '5.+'
+    log4jVersion = '2.+'
+    assertjVersion = '3.+'
+
+    jacocoVersion = '0.8.+'
+}
+
+allprojects {
+    group = 'io.github.cloudscheduler'
+    version = '1.0.3'
+
+    apply plugin: 'nebula.lint'
+    apply plugin: 'nebula.dependency-lock'
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+    apply plugin: 'signing'
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.github.sherter.google-java-format'
+
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+
+    jacoco {
+        toolVersion = '0.8.5'
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: junitVersion
+        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitVersion
+        testImplementation group: 'org.assertj', name: 'assertj-core', version: assertjVersion
+    }
+
+    googleJavaFormat {
+        source = 'src/main'
+        source += 'src/test'
+        include '**/*.java'
+    }
+
+    verifyGoogleJavaFormat {
+        source = 'src/main'
+        include '**/*.java'
+    }
+
+    javadoc {
+        if(JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption('html5', true)
+        }
+    }
+
+    task sourcesJar(type: Jar) {
+        archiveClassifier = 'sources'
+        from sourceSets.main.allJava
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        archiveClassifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    configurations.all {
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'log4j', module: 'log4j'
+    }
+
+    gradleLint {
+        criticalRules += 'all-dependency'
+        excludedRules += 'overridden-dependency-version'
+        alwaysRun = false
+        build.finalizedBy lintGradle
+    }
+
+    signing {
+        useGpgCmd()
+        sign publishing.publications
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from(components.java)
+                artifact(sourcesJar)
+                artifact(javadocJar)
+                pom {
+                    url = 'https://github.com/cloudscheduler/cloudscheduler'
+                    licenses {
+                        license {
+                            name = 'MIT License'
+                            url = 'http://www.opensource.org/licenses/mit-license.php'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'noodle05'
+                            name = 'Wei Gao'
+                            email = 'wei@gaofamily.org'
+                        }
+                    }
+                    scm {
+                        url = 'https://github.com/cloudscheduler/cloudscheduler'
+                        connection = 'scm:git:git@github.com:cloudscheduler/cloudscheduler.git'
+                        developerConnection = 'scm:git:git@github.com:cloudscheduler/cloudscheduler.git'
+                    }
+                }
+            }
+        }
+
+        repositories() {
+            mavenLocal()
+            maven {
+                def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username System.getenv('SONATYPE_USERNAME')
+                    password System.getenv('SONATYPE_PASSWORD')
+                }
+            }
+        }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    test {
+        useJUnitPlatform()
+        testLogging {
+            events "passed", "skipped", "failed"
+        }
+        finalizedBy jacocoTestReport
+
+        jacoco {
+            excludes += [
+                    'io.github.cloudscheduler.Job',
+                    'io.github.cloudscheduler.NodeRole',
+                    'io.github.cloudscheduler.CancelReason',
+                    'io.github.cloudscheduler.JobException',
+                    'io.github.cloudscheduler.CloudSchedulerObserver',
+                    'io.github.cloudscheduler.Node',
+                    'io.github.cloudscheduler.codec.EntityCodecProvider',
+                    'io.github.cloudscheduler.model.*',
+                    'io.github.cloudscheduler.codec.jackson.*MixIn',
+                    'io.github.cloudscheduler.AsyncService',
+                    'io.github.cloudscheduler.util.CompletableFutureUtils.TimeoutCompletableFuture',
+                    'io.github.cloudscheduler.service.JobService',
+                    'io.github.cloudscheduler.SchedulerImpl'
+            ]
+        }
+    }
+
+    jacocoTestCoverageVerification {
+        violationRules {
+            rule {
+                element = 'CLASS'
+                limit {
+                    minimum = 0.5
+                }
+                excludes = test.jacoco.excludes
+            }
+        }
+    }
+
+    jacocoTestReport {
+        afterEvaluate {
+            classDirectories.setFrom(classDirectories.files.collect {
+                fileTree(dir: it, exclude: test.jacoco.excludes.collect {
+                    if (!it.endsWith('*')) {
+                        it.replace('.', '/') + '.class'
+                    } else {
+                        it.replace('.', '/')
+                    }
+                })
+            })
+        }
+    }
+
+    task allDeps(type: DependencyReportTask) {}
+
+    check.dependsOn jacocoTestCoverageVerification
+}

@@ -52,10 +52,8 @@ class JobExecutionContextImpl implements JobExecutionContext {
    * @param jobDefStatus job definition status
    * @param jobIn job instance
    */
-  JobExecutionContextImpl(Node node,
-                                 JobDefinition jobDef,
-                                 JobDefinitionStatus jobDefStatus,
-                                 JobInstance jobIn) {
+  JobExecutionContextImpl(
+      Node node, JobDefinition jobDef, JobDefinitionStatus jobDefStatus, JobInstance jobIn) {
     this.node = node;
     this.jobDef = jobDef;
     this.jobDefStatus = jobDefStatus;

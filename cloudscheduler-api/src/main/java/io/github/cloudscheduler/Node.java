@@ -29,10 +29,10 @@ import java.io.Serializable;
 import java.util.UUID;
 
 /**
- * <p>A scheduler node object. All scheduler workers hold a scheduler node object and
- * register itself to master with this node object.</p>
+ * A scheduler node object. All scheduler workers hold a scheduler node object and register itself
+ * to master with this node object.
  *
- * <p>This object implemented hashCode and equals, it's safe to use it as key in HashMap</p>
+ * <p>This object implemented hashCode and equals, it's safe to use it as key in HashMap
  *
  * @author Wei Gao
  */

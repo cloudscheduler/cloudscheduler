@@ -26,8 +26,8 @@ package io.github.cloudscheduler;
 
 /**
  * In order to use cloud scheduler, you need to implement Job interface, and then use
- * JobDefinition.Builder to build a JobDefinition, and call API on Scheduler to schedule
- * the job definitions
+ * JobDefinition.Builder to build a JobDefinition, and call API on Scheduler to schedule the job
+ * definitions
  *
  * @author Wei Gao
  */

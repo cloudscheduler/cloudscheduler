@@ -27,18 +27,17 @@ package io.github.cloudscheduler.codec;
 import java.util.ServiceLoader;
 
 /**
- * <p>Entity Codec Provider. Use {@link ServiceLoader} feature to load implementation.
- * Register implementation in
- * /META-INF/services/io.github.cloudscheduler.codec.EntityCodecProvider</p>
+ * Entity Codec Provider. Use {@link ServiceLoader} feature to load implementation. Register
+ * implementation in /META-INF/services/io.github.cloudscheduler.codec.EntityCodecProvider
  *
- * <p>Cloudscheduler provide jackson based implementation and protobuf based implementation,
- * if you want use them, please add cloudscheduler-codec-json or cloudscheduler-codec-protobuf
- * as your dependency</p>
+ * <p>Cloudscheduler provide jackson based implementation and protobuf based implementation, if you
+ * want use them, please add cloudscheduler-codec-json or cloudscheduler-codec-protobuf as your
+ * dependency
  *
- * <p>If jackson (version 2) conflict with your environment, you can use protobuf implementation
- * or implement your own codec provider</p>
+ * <p>If jackson (version 2) conflict with your environment, you can use protobuf implementation or
+ * implement your own codec provider
  *
- * <p>Please note: YOU SHOULD REGISTER ONLY ONE CODEC PROVIDER</p>
+ * <p>Please note: YOU SHOULD REGISTER ONLY ONE CODEC PROVIDER
  *
  * @author Wei Gao
  */

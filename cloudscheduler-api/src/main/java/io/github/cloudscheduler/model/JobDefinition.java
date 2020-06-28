@@ -37,9 +37,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * <p>JobDefinition. End user should use {@link Builder} to create instance of JobDefinition.</p>
+ * JobDefinition. End user should use {@link Builder} to create instance of JobDefinition.
  *
- * <p>User create new scheduled job by create instance of JobDefinition.</p>
+ * <p>User create new scheduled job by create instance of JobDefinition.
  *
  * @author Wei Gao
  */
@@ -74,7 +74,8 @@ public class JobDefinition implements Serializable {
   // If allow duplicate instance (multiple job run concurrently)
   private final boolean allowDupInstances;
 
-  JobDefinition(UUID id,
+  JobDefinition(
+      UUID id,
       Class<? extends Job> jobClass,
       String name,
       Map<String, Object> data,
@@ -177,9 +178,15 @@ public class JobDefinition implements Serializable {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder("JobDefinition[");
-    sb.append("id=\"").append(id.toString()).append("\"")
-        .append(",name=\"").append(name).append("\"")
-        .append(",mode=\"").append(mode).append("\"");
+    sb.append("id=\"")
+        .append(id.toString())
+        .append("\"")
+        .append(",name=\"")
+        .append(name)
+        .append("\"")
+        .append(",mode=\"")
+        .append(mode)
+        .append("\"");
     switch (mode) {
       case CRON:
         sb.append(",cron=\"").append(cron).append("\"");
@@ -195,7 +202,8 @@ public class JobDefinition implements Serializable {
         break;
       case CUSTOMIZED:
         sb.append(",customized schedule calculator class=\"")
-            .append(calculatorClass.getSimpleName()).append("\"");
+            .append(calculatorClass.getSimpleName())
+            .append("\"");
         break;
       default:
         if (rate != null) {
@@ -232,9 +240,7 @@ public class JobDefinition implements Serializable {
     return new Builder(jobClass);
   }
 
-  /**
-   * Builder class for JobDefinition.
-   */
+  /** Builder class for JobDefinition. */
   public static final class Builder {
 
     private final Class<? extends Job> jobClass;
@@ -274,7 +280,7 @@ public class JobDefinition implements Serializable {
      * Adding job data. Job data will be passed as part of job execution context when job get
      * executed
      *
-     * @param key   Key
+     * @param key Key
      * @param value Value
      * @return JobDefinition Builder object
      */
@@ -319,10 +325,10 @@ public class JobDefinition implements Serializable {
      */
     public Builder initialDelay(Duration initialDelay) {
       Objects.requireNonNull(initialDelay, "Initial delay is mandatory");
-      if (initialDelay.isNegative() || initialDelay.isZero()
+      if (initialDelay.isNegative()
+          || initialDelay.isZero()
           || initialDelay.compareTo(MINIMUM_RATE) < 0) {
-        throw new IllegalArgumentException("Invalid initial delay value"
-            + MINIMUM_RATE);
+        throw new IllegalArgumentException("Invalid initial delay value" + MINIMUM_RATE);
       }
       mode = ScheduleMode.START_AT;
       Instant startTime = Instant.now().plus(initialDelay);
@@ -490,8 +496,21 @@ public class JobDefinition implements Serializable {
       if (name == null) {
         name = id.toString();
       }
-      return new JobDefinition(id, jobClass, name, data, mode, cron,
-          startTime, endTime, rate, delay, calculatorClass, repeat, global, allowDupInstances);
+      return new JobDefinition(
+          id,
+          jobClass,
+          name,
+          data,
+          mode,
+          cron,
+          startTime,
+          endTime,
+          rate,
+          delay,
+          calculatorClass,
+          repeat,
+          global,
+          allowDupInstances);
     }
   }
 }

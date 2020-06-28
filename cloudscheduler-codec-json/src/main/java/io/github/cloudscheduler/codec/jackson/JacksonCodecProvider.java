@@ -50,15 +50,14 @@ public class JacksonCodecProvider implements EntityCodecProvider {
   private final ObjectMapper objectMapper;
   private final Map<Class<?>, EntityCodec<?>> codecs;
 
-  /**
-   * Default constructor.
-   */
+  /** Default constructor. */
   public JacksonCodecProvider() {
-    objectMapper = new ObjectMapper()
-        .registerModule(new ParameterNamesModule())
-        .registerModule(new Jdk8Module())
-        .registerModule(new JavaTimeModule())
-        .setSerializationInclusion(NON_EMPTY);
+    objectMapper =
+        new ObjectMapper()
+            .registerModule(new ParameterNamesModule())
+            .registerModule(new Jdk8Module())
+            .registerModule(new JavaTimeModule())
+            .setSerializationInclusion(NON_EMPTY);
     objectMapper.addMixIn(JobDefinition.class, JobDefinitionMixIn.class);
     objectMapper.addMixIn(JobDefinitionStatus.class, JobDefinitionStatusMixIn.class);
     objectMapper.addMixIn(JobInstance.class, JobInstanceMixIn.class);
@@ -76,25 +75,26 @@ public class JacksonCodecProvider implements EntityCodecProvider {
       synchronized (codecs) {
         codec = (EntityCodec<T>) codecs.get(type);
         if (codec == null) {
-          codec = new EntityCodec<T>() {
-            @Override
-            public T decode(byte[] data) throws IOException {
-              if (data == null) {
-                return null;
-              } else {
-                return objectMapper.readValue(data, type);
-              }
-            }
+          codec =
+              new EntityCodec<T>() {
+                @Override
+                public T decode(byte[] data) throws IOException {
+                  if (data == null) {
+                    return null;
+                  } else {
+                    return objectMapper.readValue(data, type);
+                  }
+                }
 
-            @Override
-            public byte[] encode(T entity) throws IOException {
-              if (entity == null) {
-                return null;
-              } else {
-                return objectMapper.writeValueAsBytes(entity);
-              }
-            }
-          };
+                @Override
+                public byte[] encode(T entity) throws IOException {
+                  if (entity == null) {
+                    return null;
+                  } else {
+                    return objectMapper.writeValueAsBytes(entity);
+                  }
+                }
+              };
           codecs.put(type, codec);
         }
       }

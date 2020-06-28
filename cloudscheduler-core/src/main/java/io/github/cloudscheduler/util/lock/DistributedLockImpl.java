@@ -54,8 +54,10 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
   private static final Logger logger = LoggerFactory.getLogger(DistributedLockImpl.class);
 
   private static final Pattern UUID_SEQUENTIAL_PATTERN =
-      Pattern.compile("^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-"
-              + "[0-9a-f]{12})-(?<sequence>\\d{10})$", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-"
+              + "[0-9a-f]{12})-(?<sequence>\\d{10})$",
+          Pattern.CASE_INSENSITIVE);
 
   private final ZooKeeper zooKeeper;
   private final String lockBasePath;
@@ -80,12 +82,18 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     Objects.requireNonNull(id, "ID is mandatory");
     Objects.requireNonNull(zooKeeper, "ZooKeeper is mandatory");
     Objects.requireNonNull(lockBasePath, "Lock base path is mandatory");
-    logger.debug("{}: Creating distributed lock {} on {} under folder: {}",
-        id, lockName, zooKeeper, lockBasePath);
+    logger.debug(
+        "{}: Creating distributed lock {} on {} under folder: {}",
+        id,
+        lockName,
+        zooKeeper,
+        lockBasePath);
     this.id = id;
     this.zooKeeper = zooKeeper;
-    this.lockBasePath = (lockBasePath.startsWith("/") ? "" : "/")
-        + lockBasePath + (lockName == null ? "" : ("/" + lockName));
+    this.lockBasePath =
+        (lockBasePath.startsWith("/") ? "" : "/")
+            + lockBasePath
+            + (lockName == null ? "" : ("/" + lockName));
     if (lockName == null) {
       this.lockName = lockBasePath.substring(lockBasePath.lastIndexOf('/') + 1);
     } else {
@@ -93,15 +101,18 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     }
     this.lockAcquired = new AtomicBoolean(false);
     //noinspection
-    this.retryStrategy = RetryStrategy.newBuilder()
-        .fibonacci(250L)
-        .random()
-        .maxRetry(10)
-        .retryOn(Collections.singletonList(KeeperException.class))
-        .stopAt(Arrays.asList(KeeperException.NoAuthException.class,
-            KeeperException.SessionExpiredException.class,
-            KeeperException.ConnectionLossException.class))
-        .build();
+    this.retryStrategy =
+        RetryStrategy.newBuilder()
+            .fibonacci(250L)
+            .random()
+            .maxRetry(10)
+            .retryOn(Collections.singletonList(KeeperException.class))
+            .stopAt(
+                Arrays.asList(
+                    KeeperException.NoAuthException.class,
+                    KeeperException.SessionExpiredException.class,
+                    KeeperException.ConnectionLossException.class))
+            .build();
     ZooKeeperUtils.createZnodes(zooKeeper, this.lockBasePath)
         .thenAccept(path -> this.complete(null));
   }
@@ -112,9 +123,13 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     if (lockingFuture == null) {
       synchronized (this) {
         if (lockingFuture == null) {
-          lockingFuture = thenCompose(v -> retryStrategy.call(() ->
-              createOrGetExistingEphemeralNode(lockBasePath)
-                  .thenCompose(children -> processLock(lockBasePath, children))));
+          lockingFuture =
+              thenCompose(
+                  v ->
+                      retryStrategy.call(
+                          () ->
+                              createOrGetExistingEphemeralNode(lockBasePath)
+                                  .thenCompose(children -> processLock(lockBasePath, children))));
         }
       }
     }
@@ -124,37 +139,41 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
   @Override
   public CompletableFuture<Void> unlock() {
     logger.trace("Unlock");
-    return thenCompose(v -> retryStrategy.call(() -> {
-      if (lockAcquired.compareAndSet(true, false)) {
-        logger.trace("Lock acquired set to false");
-      }
-      CompletableFuture<Void> f = lockingFuture;
-      lockingFuture = null;
-      if (f != null) {
-        f.cancel(true);
-      }
-      if (lockPath != null) {
-        String nodeName = lockBasePath + "/" + lockPath;
-        return ZooKeeperUtils.deleteIfExists(zooKeeper, nodeName);
-      }
-      return CompletableFuture.completedFuture(null);
-    }));
+    return thenCompose(
+        v ->
+            retryStrategy.call(
+                () -> {
+                  if (lockAcquired.compareAndSet(true, false)) {
+                    logger.trace("Lock acquired set to false");
+                  }
+                  CompletableFuture<Void> f = lockingFuture;
+                  lockingFuture = null;
+                  if (f != null) {
+                    f.cancel(true);
+                  }
+                  if (lockPath != null) {
+                    String nodeName = lockBasePath + "/" + lockPath;
+                    return ZooKeeperUtils.deleteIfExists(zooKeeper, nodeName);
+                  }
+                  return CompletableFuture.completedFuture(null);
+                }));
   }
 
   private SortedMap<Integer, String> getOrderedChildren(List<String> children) {
     SortedMap<Integer, String> result = new TreeMap<>();
-    children.forEach(p -> {
-      String nodeName = p;
-      int i = p.lastIndexOf('/');
-      if (i >= 0) {
-        nodeName = p.substring(i);
-      }
-      Matcher m = UUID_SEQUENTIAL_PATTERN.matcher(nodeName);
-      if (m.matches()) {
-        int seq = Integer.parseInt(m.group("sequence"));
-        result.put(seq, p);
-      }
-    });
+    children.forEach(
+        p -> {
+          String nodeName = p;
+          int i = p.lastIndexOf('/');
+          if (i >= 0) {
+            nodeName = p.substring(i);
+          }
+          Matcher m = UUID_SEQUENTIAL_PATTERN.matcher(nodeName);
+          if (m.matches()) {
+            int seq = Integer.parseInt(m.group("sequence"));
+            result.put(seq, p);
+          }
+        });
     return result;
   }
 
@@ -186,27 +205,37 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
   }
 
   private CompletableFuture<List<String>> createOrGetExistingEphemeralNode(String base) {
-    return retryStrategy.call(() -> ZooKeeperUtils.getChildren(zooKeeper, base)
-        .thenCompose(children -> {
-          logger.trace("List children under {} return: {}", base, children);
-          Map<Integer, String> existing = getExistingNode(children);
-          if (existing != null) {
-            Map.Entry<Integer, String> e = existing.entrySet().iterator().next();
-            this.sequence = e.getKey();
-            this.lockPath = e.getValue();
-            logger.trace("{}-{}: Found existing znode for this lock, sequence: {}",
-                id, lockName, sequence);
-            return CompletableFuture.completedFuture(children);
-          } else {
-            return ZooKeeperUtils.createZnode(zooKeeper,
-                base + "/" + id.toString() + "-",
-                CreateMode.EPHEMERAL_SEQUENTIAL, null)
-                .thenCompose(path -> {
-                  logger.trace("Create ephemeral sequential node return path: {}", path);
-                  return createOrGetExistingEphemeralNode(base);
-                });
-          }
-        }));
+    return retryStrategy.call(
+        () ->
+            ZooKeeperUtils.getChildren(zooKeeper, base)
+                .thenCompose(
+                    children -> {
+                      logger.trace("List children under {} return: {}", base, children);
+                      Map<Integer, String> existing = getExistingNode(children);
+                      if (existing != null) {
+                        Map.Entry<Integer, String> e = existing.entrySet().iterator().next();
+                        this.sequence = e.getKey();
+                        this.lockPath = e.getValue();
+                        logger.trace(
+                            "{}-{}: Found existing znode for this lock, sequence: {}",
+                            id,
+                            lockName,
+                            sequence);
+                        return CompletableFuture.completedFuture(children);
+                      } else {
+                        return ZooKeeperUtils.createZnode(
+                                zooKeeper,
+                                base + "/" + id.toString() + "-",
+                                CreateMode.EPHEMERAL_SEQUENTIAL,
+                                null)
+                            .thenCompose(
+                                path -> {
+                                  logger.trace(
+                                      "Create ephemeral sequential node return path: {}", path);
+                                  return createOrGetExistingEphemeralNode(base);
+                                });
+                      }
+                    }));
   }
 
   private CompletableFuture<Void> processLock(String basePath, List<String> children) {
@@ -221,13 +250,17 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
           return CompletableFuture.completedFuture(null);
         } else {
           String nextPath = kids.get(smallest);
-          return thenCompose(n -> retryStrategy.call(() -> ZooKeeperUtils
-              .waitTillGone(zooKeeper, basePath + "/" + nextPath)
-              .thenCompose(v -> {
-                logger.trace("{} gone.", nextPath);
-                return ZooKeeperUtils.getChildren(zooKeeper, basePath)
-                    .thenCompose(cs -> processLock(basePath, cs));
-              })));
+          return thenCompose(
+              n ->
+                  retryStrategy.call(
+                      () ->
+                          ZooKeeperUtils.waitTillGone(zooKeeper, basePath + "/" + nextPath)
+                              .thenCompose(
+                                  v -> {
+                                    logger.trace("{} gone.", nextPath);
+                                    return ZooKeeperUtils.getChildren(zooKeeper, basePath)
+                                        .thenCompose(cs -> processLock(basePath, cs));
+                                  })));
         }
       } else if (this.sequence > entry.getKey()) {
         smallest = entry.getKey();

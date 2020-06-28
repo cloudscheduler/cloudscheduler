@@ -40,7 +40,8 @@ import java.util.UUID;
  */
 abstract class JobDefinitionMixIn {
 
-  JobDefinitionMixIn(@JsonProperty("id") UUID id,
+  JobDefinitionMixIn(
+      @JsonProperty("id") UUID id,
       @JsonProperty("job_class") Class<? extends Job> jobClass,
       @JsonProperty("name") String name,
       @JsonProperty("ctx_data") Map<String, Object> data,
@@ -53,8 +54,7 @@ abstract class JobDefinitionMixIn {
       @JsonProperty("calculator_class") Class<? extends JobScheduleCalculator> calculatorClass,
       @JsonProperty("repeat") Integer repeat,
       @JsonProperty("global") boolean global,
-      @JsonProperty("allow_dup_instances") boolean allowDupInstances) {
-  }
+      @JsonProperty("allow_dup_instances") boolean allowDupInstances) {}
 
   @JsonProperty("id")
   abstract UUID getId();

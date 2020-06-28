@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-if [ "$TRAVIS_PULL_REQUEST" == 'false' ]; then
-    mvn deploy -DskipTests -P sign,build-extras --settings cd/travis-settings.xml
+if [[ "$TRAVIS_PULL_REQUEST" == 'false' && "$TRAVIS_BRANCH" == 'master' ]]; then
+    ./gradlew publish -Psigning.gnupg.keyName="${GPG_KEY_NAME}" -Psigning.gnupg.passphrase="${GPG_PASSPHRASE}" -Psigning.gnupg.useLegacyGpg=true
 fi

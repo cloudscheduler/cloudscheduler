@@ -24,6 +24,9 @@
 
 package io.github.cloudscheduler.util.retry;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 import java.io.IOError;
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,149 +34,190 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.zookeeper.KeeperException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class RetryStrategyTest {
-  private static final Logger logger = LoggerFactory.getLogger(RetryStrategyTest.class);
-
-  @Test(expectedExceptions = RuntimeException.class)
-  public void testFixedRetry() throws Throwable {
-    AtomicInteger counter = new AtomicInteger(0);
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .fixedDelay(100L)
-        .maxRetry(3)
-        .retryOn(Collections.singletonList(RuntimeException.class))
-        .build();
-    try {
-      retryer.call(() ->
-          CompletableFuture.completedFuture(null).thenAccept(n -> {
-            counter.incrementAndGet();
-            throw new RuntimeException();
-          })).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    } finally {
-      Assert.assertEquals(counter.get(), 3);
-    }
+  @Test
+  public void testFixedRetry() {
+    assertThatExceptionOfType(RuntimeException.class)
+        .isThrownBy(
+            () -> {
+              AtomicInteger counter = new AtomicInteger(0);
+              RetryStrategy retryer =
+                  RetryStrategy.newBuilder()
+                      .fixedDelay(100L)
+                      .maxRetry(3)
+                      .retryOn(Collections.singletonList(RuntimeException.class))
+                      .build();
+              try {
+                retryer
+                    .call(
+                        () ->
+                            CompletableFuture.completedFuture(null)
+                                .thenAccept(
+                                    n -> {
+                                      counter.incrementAndGet();
+                                      throw new RuntimeException();
+                                    }))
+                    .get();
+              } catch (ExecutionException e) {
+                throw e.getCause();
+              } finally {
+                assertThat(counter.get()).isEqualTo(3);
+              }
+            });
   }
 
-  @Test(expectedExceptions = KeeperException.SessionExpiredException.class)
-  public void testStopAtAndRetryOn() throws Throwable {
-    AtomicInteger counter = new AtomicInteger(0);
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .fixedDelay(100L)
-        .maxRetry(3)
-        .retryOn(Collections.singletonList(KeeperException.class))
-        .stopAt(Arrays.asList(KeeperException.NoAuthException.class,
-            KeeperException.SessionExpiredException.class))
-        .build();
-    try {
-      retryer.call(() -> {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        int t = counter.incrementAndGet();
-        if (t == 1) {
-          future.completeExceptionally(KeeperException.create(KeeperException.Code.BADVERSION));
-        } else {
-          future.completeExceptionally(KeeperException.create(KeeperException.Code.SESSIONEXPIRED));
-        }
-        return future;
-      }).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    } finally {
-      Assert.assertEquals(counter.get(), 2);
-    }
+  @Test
+  public void testStopAtAndRetryOn() {
+    assertThatExceptionOfType(KeeperException.SessionExpiredException.class)
+        .isThrownBy(
+            () -> {
+              AtomicInteger counter = new AtomicInteger(0);
+              RetryStrategy retryer =
+                  RetryStrategy.newBuilder()
+                      .fixedDelay(100L)
+                      .maxRetry(3)
+                      .retryOn(Collections.singletonList(KeeperException.class))
+                      .stopAt(
+                          Arrays.asList(
+                              KeeperException.NoAuthException.class,
+                              KeeperException.SessionExpiredException.class))
+                      .build();
+              try {
+                retryer
+                    .call(
+                        () -> {
+                          CompletableFuture<Void> future = new CompletableFuture<>();
+                          int t = counter.incrementAndGet();
+                          if (t == 1) {
+                            future.completeExceptionally(
+                                KeeperException.create(KeeperException.Code.BADVERSION));
+                          } else {
+                            future.completeExceptionally(
+                                KeeperException.create(KeeperException.Code.SESSIONEXPIRED));
+                          }
+                          return future;
+                        })
+                    .get();
+              } catch (ExecutionException e) {
+                throw e.getCause();
+              } finally {
+                assertThat(counter.get()).isEqualTo(2);
+              }
+            });
   }
 
-  @Test(expectedExceptions = KeeperException.BadVersionException.class)
-  public void testExceedMaxRetry() throws Throwable {
-    AtomicInteger counter = new AtomicInteger(0);
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .fixedDelay(100L)
-        .maxRetry(3)
-        .retryOn(Collections.singletonList(KeeperException.class))
-        .stopAt(Arrays.asList(KeeperException.NoAuthException.class,
-            KeeperException.SessionExpiredException.class))
-        .build();
-    try {
-      retryer.call(() -> {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        counter.incrementAndGet();
-        future.completeExceptionally(KeeperException.create(KeeperException.Code.BADVERSION));
-        return future;
-      }).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    } finally {
-      Assert.assertEquals(counter.get(), 3);
-    }
+  @Test
+  public void testExceedMaxRetry() {
+    assertThatExceptionOfType(KeeperException.BadVersionException.class)
+        .isThrownBy(
+            () -> {
+              AtomicInteger counter = new AtomicInteger(0);
+              RetryStrategy retryer =
+                  RetryStrategy.newBuilder()
+                      .fixedDelay(100L)
+                      .maxRetry(3)
+                      .retryOn(Collections.singletonList(KeeperException.class))
+                      .stopAt(
+                          Arrays.asList(
+                              KeeperException.NoAuthException.class,
+                              KeeperException.SessionExpiredException.class))
+                      .build();
+              try {
+                retryer
+                    .call(
+                        () -> {
+                          CompletableFuture<Void> future = new CompletableFuture<>();
+                          counter.incrementAndGet();
+                          future.completeExceptionally(
+                              KeeperException.create(KeeperException.Code.BADVERSION));
+                          return future;
+                        })
+                    .get();
+              } catch (ExecutionException e) {
+                throw e.getCause();
+              } finally {
+                assertThat(counter.get()).isEqualTo(3);
+              }
+            });
+  }
+
+  @Test
+  public void estIncrementalNextDelay() {
+    RetryStrategy retryer =
+        RetryStrategy.newBuilder().incrementDelay(100L, 100L).maxDelay(50000L).build();
+    assertThat(retryer.nextRetryDelay(null, null, 1)).isEqualTo(200L);
+    assertThat(retryer.nextRetryDelay(null, null, 2)).isEqualTo(300L);
+    assertThat(retryer.nextRetryDelay(null, null, 5)).isEqualTo(600L);
+    assertThat(retryer.nextRetryDelay(null, null, 8)).isEqualTo(900L);
+    assertThat(retryer.nextRetryDelay(null, null, 9)).isEqualTo(1000L);
+    assertThat(retryer.nextRetryDelay(null, null, 10)).isEqualTo(1100L);
+    assertThat(retryer.nextRetryDelay(null, null, 100)).isEqualTo(10100L);
   }
 
   @Test
   public void testExponentialNextDelay() {
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .exponential(100L)
-        .maxDelay(50000L)
-        .build();
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 1), 100L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 2), 200L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 5), 1600L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 8), 12800L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 9), 25600L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 10), 50000L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 100), 50000L);
+    RetryStrategy retryer = RetryStrategy.newBuilder().exponential(100L).maxDelay(50000L).build();
+    assertThat(retryer.nextRetryDelay(null, null, 1)).isEqualTo(100L);
+    assertThat(retryer.nextRetryDelay(null, null, 2)).isEqualTo(200L);
+    assertThat(retryer.nextRetryDelay(null, null, 5)).isEqualTo(1600L);
+    assertThat(retryer.nextRetryDelay(null, null, 8)).isEqualTo(12800L);
+    assertThat(retryer.nextRetryDelay(null, null, 9)).isEqualTo(25600L);
+    assertThat(retryer.nextRetryDelay(null, null, 10)).isEqualTo(50000L);
+    assertThat(retryer.nextRetryDelay(null, null, 100)).isEqualTo(50000L);
   }
 
   @Test
   public void testFibonacciNextDelay() {
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .fibonacci(100L)
-        .build();
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 1), 100L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 2), 100L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 3), 200L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 4), 300L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 10), 5500L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 20), 676500L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 50), 1258626902500L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 80), 2341672834846768500L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 82), 6130579072161159100L);
-    Assert.assertEquals(retryer.nextRetryDelay(null, null, 100), 6130579072161159100L);
+    RetryStrategy retryer = RetryStrategy.newBuilder().fibonacci(100L).build();
+    assertThat(retryer.nextRetryDelay(null, null, 1)).isEqualTo(100L);
+    assertThat(retryer.nextRetryDelay(null, null, 2)).isEqualTo(100L);
+    assertThat(retryer.nextRetryDelay(null, null, 3)).isEqualTo(200L);
+    assertThat(retryer.nextRetryDelay(null, null, 4)).isEqualTo(300L);
+    assertThat(retryer.nextRetryDelay(null, null, 10)).isEqualTo(5500L);
+    assertThat(retryer.nextRetryDelay(null, null, 20)).isEqualTo(676500L);
+    assertThat(retryer.nextRetryDelay(null, null, 50)).isEqualTo(1258626902500L);
+    assertThat(retryer.nextRetryDelay(null, null, 80)).isEqualTo(2341672834846768500L);
+    assertThat(retryer.nextRetryDelay(null, null, 82)).isEqualTo(6130579072161159100L);
+    assertThat(retryer.nextRetryDelay(null, null, 100)).isEqualTo(6130579072161159100L);
   }
 
   @Test
   public void testRetryOnStopAt() {
-    RetryStrategy retryer = RetryStrategy.newBuilder()
-        .fixedDelay(100L)
-        .retryOn(Collections.singletonList(RuntimeException.class))
-        .maxRetry(5)
-        .build();
-    Assert.assertTrue(retryer.shouldRetry(null, new RuntimeException(), 1));
-    Assert.assertTrue(retryer.shouldRetry(null, new RuntimeException(), 4));
-    Assert.assertFalse(retryer.shouldRetry(null, new RuntimeException(), 5));
-    Assert.assertTrue(retryer.shouldRetry(null, new IllegalArgumentException(), 3));
-    Assert.assertTrue(retryer.shouldRetry(null, new IllegalStateException(), 2));
-    Assert.assertFalse(retryer.shouldRetry(null, new IllegalStateException(), 7));
-    Assert.assertFalse(retryer.shouldRetry(null, new Exception(), 2));
-    Assert.assertFalse(retryer.shouldRetry(null, new IOException(), 1));
-    Assert.assertFalse(retryer.shouldRetry(null, new IOError(new RuntimeException()), 1));
-    retryer = RetryStrategy.newBuilder()
-        .fixedDelay(100L)
-        .retryOn(Collections.singletonList(KeeperException.class))
-        .stopAt(Arrays.asList(KeeperException.NoAuthException.class,
-            KeeperException.SessionExpiredException.class))
-        .maxRetry(5)
-        .build();
-    Assert.assertTrue(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.BADVERSION), 1));
-    Assert.assertFalse(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.APIERROR), 5));
-    Assert.assertFalse(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.NOAUTH), 1));
+    RetryStrategy retryer =
+        RetryStrategy.newBuilder()
+            .fixedDelay(100L)
+            .retryOn(Collections.singletonList(RuntimeException.class))
+            .maxRetry(5)
+            .build();
+    assertThat(retryer.shouldRetry(null, new RuntimeException(), 1)).isTrue();
+    assertThat(retryer.shouldRetry(null, new RuntimeException(), 4)).isTrue();
+    assertThat(retryer.shouldRetry(null, new RuntimeException(), 5)).isFalse();
+    assertThat(retryer.shouldRetry(null, new IllegalArgumentException(), 3)).isTrue();
+    assertThat(retryer.shouldRetry(null, new IllegalStateException(), 2)).isTrue();
+    assertThat(retryer.shouldRetry(null, new IllegalStateException(), 7)).isFalse();
+    assertThat(retryer.shouldRetry(null, new Exception(), 2)).isFalse();
+    assertThat(retryer.shouldRetry(null, new IOException(), 1)).isFalse();
+    assertThat(retryer.shouldRetry(null, new IOError(new RuntimeException()), 1)).isFalse();
+    retryer =
+        RetryStrategy.newBuilder()
+            .fixedDelay(100L)
+            .retryOn(Collections.singletonList(KeeperException.class))
+            .stopAt(
+                Arrays.asList(
+                    KeeperException.NoAuthException.class,
+                    KeeperException.SessionExpiredException.class))
+            .maxRetry(5)
+            .build();
+    assertThat(
+            retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.BADVERSION), 1))
+        .isTrue();
+    assertThat(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.APIERROR), 5))
+        .isFalse();
+    assertThat(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.NOAUTH), 1))
+        .isFalse();
   }
 }

@@ -57,8 +57,7 @@ public class JobInstance implements Serializable {
    * @param id job instance id
    * @param jobDefId job definition id
    */
-  public JobInstance(UUID id,
-                     UUID jobDefId) {
+  public JobInstance(UUID id, UUID jobDefId) {
     this.id = id;
     this.jobDefId = jobDefId;
     runStatus = new HashMap<>();

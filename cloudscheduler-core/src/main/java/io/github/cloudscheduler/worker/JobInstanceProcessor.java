@@ -64,14 +64,15 @@ class JobInstanceProcessor implements AsyncService {
   private CompletableFuture<?> future;
   private DistributedLock lock;
 
-  JobInstanceProcessor(Node node,
-                       JobInstance jobIn,
-                       ZooKeeper zooKeeper,
-                       ExecutorService threadPool,
-                       ExecutorService customerThreadPool,
-                       JobService jobService,
-                       JobFactory jobFactory,
-                       CloudSchedulerObserver observer) {
+  JobInstanceProcessor(
+      Node node,
+      JobInstance jobIn,
+      ZooKeeper zooKeeper,
+      ExecutorService threadPool,
+      ExecutorService customerThreadPool,
+      JobService jobService,
+      JobFactory jobFactory,
+      CloudSchedulerObserver observer) {
     this.node = node;
     this.jobInId = jobIn.getId();
     this.zooKeeper = zooKeeper;
@@ -84,105 +85,151 @@ class JobInstanceProcessor implements AsyncService {
 
   void start() {
     logger.trace("Start JobInstance processor for {}", jobInId);
-    future = jobService.getJobInstanceByIdAsync(jobInId)
-        .thenCompose(jobIn -> jobService.getJobDefinitionByIdAsync(jobIn.getJobDefId())
-            .thenCompose(jobDef -> {
-              logger.trace("JobInstance {}, JobDefinition is: {}", jobInId, jobDef.getId());
-              if (jobDef.isGlobal()) {
-                if (jobIn.getRunStatus().keySet().contains(node.getId())) {
-                  return runJob(jobDef, jobIn);
-                } else {
-                  return CompletableFuture.completedFuture(null);
-                }
-              } else {
-                lock = new DistributedLockImpl(node.getId(), zooKeeper,
-                    jobService.getJobInstancePath(jobInId), null);
-                return lock.lock().thenCompose(v -> {
-                  logger.trace("Loaded JobInstance for id: {}", jobInId);
-                  if (!jobIn.getJobState().isComplete(jobDef.isGlobal())) {
-                    logger.trace("JobInstance {} not complete yet, run it", jobInId);
-                    return runJob(jobDef, jobIn);
-                  } else {
-                    logger.trace("JobInstance {} completed, not run it.", jobInId);
-                    return CompletableFuture.completedFuture(null);
-                  }
-                })
-                    .exceptionally(cause -> {
-                      logger.debug("Error happened when processing job instance {}",
-                          jobInId, cause);
-                      return null;
-                    })
-                    .thenCompose(v -> {
-                      logger.trace("Unlock JobInstance: {}", jobInId);
-                      return lock.unlock();
-                    }).exceptionally(cause -> {
-                      logger.error(
-                          "Error happened when unlock distribute lock for JobInstance: {}",
-                          jobIn.getId(), cause);
-                      return null;
-                    });
-              }
-            }));
+    future =
+        jobService
+            .getJobInstanceByIdAsync(jobInId)
+            .thenCompose(
+                jobIn ->
+                    jobService
+                        .getJobDefinitionByIdAsync(jobIn.getJobDefId())
+                        .thenCompose(
+                            jobDef -> {
+                              logger.trace(
+                                  "JobInstance {}, JobDefinition is: {}", jobInId, jobDef.getId());
+                              if (jobDef.isGlobal()) {
+                                if (jobIn.getRunStatus().keySet().contains(node.getId())) {
+                                  return runJob(jobDef, jobIn);
+                                } else {
+                                  return CompletableFuture.completedFuture(null);
+                                }
+                              } else {
+                                lock =
+                                    new DistributedLockImpl(
+                                        node.getId(),
+                                        zooKeeper,
+                                        jobService.getJobInstancePath(jobInId),
+                                        null);
+                                return lock.lock()
+                                    .thenCompose(
+                                        v -> {
+                                          logger.trace("Loaded JobInstance for id: {}", jobInId);
+                                          if (!jobIn.getJobState().isComplete(jobDef.isGlobal())) {
+                                            logger.trace(
+                                                "JobInstance {} not complete yet, run it", jobInId);
+                                            return runJob(jobDef, jobIn);
+                                          } else {
+                                            logger.trace(
+                                                "JobInstance {} completed, not run it.", jobInId);
+                                            return CompletableFuture.completedFuture(null);
+                                          }
+                                        })
+                                    .exceptionally(
+                                        cause -> {
+                                          logger.debug(
+                                              "Error happened when processing job instance {}",
+                                              jobInId,
+                                              cause);
+                                          return null;
+                                        })
+                                    .thenCompose(
+                                        v -> {
+                                          logger.trace("Unlock JobInstance: {}", jobInId);
+                                          return lock.unlock();
+                                        })
+                                    .exceptionally(
+                                        cause -> {
+                                          logger.error(
+                                              "Error happened when unlock distribute lock for JobInstance: {}",
+                                              jobIn.getId(),
+                                              cause);
+                                          return null;
+                                        });
+                              }
+                            }));
   }
 
   private CompletableFuture<Void> runJob(JobDefinition jobDef, JobInstance jobIn) {
     logger.debug("Run job instance");
-    return jobService.getJobStatusByIdAsync(jobDef.getId())
-        .thenCompose(status -> jobService.startProcessJobInstanceAsync(jobIn.getId(), node.getId())
-            .thenApplyAsync(ji -> {
-              observer.jobInstanceStarted(jobDef.getId(), jobIn.getId(), node.getId(),
-                  Instant.now());
-              return ji;
-            }, threadPool)
-            .thenComposeAsync(ji -> {
-              logger.trace("Preparing job");
-              try {
-                Job job = jobFactory.newJob(jobDef);
-                logger.trace("Created job object instance");
-                JobExecutionContext ctx = new JobExecutionContextImpl(node, jobDef, status, jobIn);
-                logger.trace("Created job execution context, run it.");
-                job.execute(ctx);
-                logger.trace("Return from job implementation.");
-                return CompletableFuture.completedFuture((Void) null);
-              } catch (Throwable e) {
-                return CompletableFutureUtils.exceptionalCompletableFuture(e);
+    return jobService
+        .getJobStatusByIdAsync(jobDef.getId())
+        .thenCompose(
+            status ->
+                jobService
+                    .startProcessJobInstanceAsync(jobIn.getId(), node.getId())
+                    .thenApplyAsync(
+                        ji -> {
+                          observer.jobInstanceStarted(
+                              jobDef.getId(), jobIn.getId(), node.getId(), Instant.now());
+                          return ji;
+                        },
+                        threadPool)
+                    .thenComposeAsync(
+                        ji -> {
+                          logger.trace("Preparing job");
+                          try {
+                            Job job = jobFactory.newJob(jobDef);
+                            logger.trace("Created job object instance");
+                            JobExecutionContext ctx =
+                                new JobExecutionContextImpl(node, jobDef, status, jobIn);
+                            logger.trace("Created job execution context, run it.");
+                            job.execute(ctx);
+                            logger.trace("Return from job implementation.");
+                            return CompletableFuture.completedFuture((Void) null);
+                          } catch (Throwable e) {
+                            return CompletableFutureUtils.exceptionalCompletableFuture(e);
+                          }
+                        },
+                        customerThreadPool))
+        .handleAsync(
+            (v, cause) -> {
+              if (cause != null) {
+                logger.debug(
+                    "Error happened when run job instance: {}, class: {}",
+                    jobIn.getId(),
+                    jobDef.getClass(),
+                    cause);
               }
-            }, customerThreadPool))
-        .handleAsync((v, cause) -> {
-          if (cause != null) {
-            logger.debug("Error happened when run job instance: {}, class: {}",
-                jobIn.getId(), jobDef.getClass(), cause);
-          }
-          return cause == null ? JobInstanceState.COMPLETE : JobInstanceState.FAILED;
-        }, threadPool).thenCompose(state -> {
-          logger.trace("Completing JobInstance: {}, node: {}, state: {}",
-              jobIn.getId(), node.getId(), state);
-          return jobService.completeJobInstanceAsync(jobIn.getId(), node.getId(), state)
-              .whenCompleteAsync((v, cause) -> {
-                try {
-                  if (JobInstanceState.COMPLETE.equals(state)) {
-                    observer.jobInstanceCompleted(jobDef.getId(), jobIn.getId(), node.getId(),
-                        Instant.now());
-                  } else {
-                    observer.jobInstanceFailed(jobDef.getId(), jobIn.getId(), node.getId(),
-                        Instant.now());
-                  }
-                } catch (Throwable e) {
-                  logger.debug("Error when notify observer, ignore it.", e);
-                }
-              }, threadPool)
-              .thenApply(v -> null);
-        });
+              return cause == null ? JobInstanceState.COMPLETE : JobInstanceState.FAILED;
+            },
+            threadPool)
+        .thenCompose(
+            state -> {
+              logger.trace(
+                  "Completing JobInstance: {}, node: {}, state: {}",
+                  jobIn.getId(),
+                  node.getId(),
+                  state);
+              return jobService
+                  .completeJobInstanceAsync(jobIn.getId(), node.getId(), state)
+                  .whenCompleteAsync(
+                      (v, cause) -> {
+                        try {
+                          if (JobInstanceState.COMPLETE.equals(state)) {
+                            observer.jobInstanceCompleted(
+                                jobDef.getId(), jobIn.getId(), node.getId(), Instant.now());
+                          } else {
+                            observer.jobInstanceFailed(
+                                jobDef.getId(), jobIn.getId(), node.getId(), Instant.now());
+                          }
+                        } catch (Throwable e) {
+                          logger.debug("Error when notify observer, ignore it.", e);
+                        }
+                      },
+                      threadPool)
+                  .thenApply(v -> null);
+            });
   }
 
   public CompletableFuture<?> shutdownAsync() {
     CompletableFuture<?> f;
     if (future != null) {
       future.cancel(true);
-      f = future.exceptionally(cause -> {
-        logger.debug("Error happened during job running", cause);
-        return null;
-      });
+      f =
+          future.exceptionally(
+              cause -> {
+                logger.debug("Error happened during job running", cause);
+                return null;
+              });
     } else {
       f = CompletableFuture.completedFuture(null);
     }

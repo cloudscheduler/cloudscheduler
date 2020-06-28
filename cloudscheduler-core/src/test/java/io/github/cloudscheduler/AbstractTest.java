@@ -27,7 +27,6 @@ package io.github.cloudscheduler;
 import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.service.JobServiceImpl;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-
 import java.security.SecureRandom;
 import java.util.Locale;
 import java.util.Objects;
@@ -36,41 +35,39 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public abstract class AbstractTest {
   private static final Logger logger = LoggerFactory.getLogger(AbstractTest.class);
 
   private static final RandomString gen = new RandomString(8, new SecureRandom());
 
-  private TestingServer zkTestServer;
-  ZooKeeper zooKeeper;
+  private static TestingServer zkTestServer;
+  protected ZooKeeper zooKeeper;
   protected JobService jobService;
-  protected ExecutorService threadPool;
+  protected static ExecutorService threadPool;
   protected String zkUrl;
 
-  @BeforeClass
-  public void setup() throws Exception {
+  @BeforeAll
+  public static void setup() throws Exception {
     AtomicInteger threadCounter = new AtomicInteger(0);
-    threadPool = Executors.newCachedThreadPool(r ->
-        new Thread(r, "TestThread-" + threadCounter.incrementAndGet()));
+    threadPool =
+        Executors.newCachedThreadPool(
+            r -> new Thread(r, "TestThread-" + threadCounter.incrementAndGet()));
     logger.info("Starting zookeeper");
     zkTestServer = new TestingServer();
   }
 
-  @AfterClass
-  public void teardown() {
+  @AfterAll
+  public static void teardown() {
     logger.info("Stop zookeeper server");
     try {
       zkTestServer.close();
@@ -82,7 +79,7 @@ public abstract class AbstractTest {
     }
   }
 
-  @BeforeMethod
+  @BeforeEach
   public void init() throws Exception {
     zkUrl = prepareZooKeeper();
     zooKeeper = ZooKeeperUtils.connectToZooKeeper(zkUrl, Integer.MAX_VALUE).get();
@@ -90,8 +87,7 @@ public abstract class AbstractTest {
     jobService = new JobServiceImpl(zooKeeper);
   }
 
-
-  @AfterMethod
+  @AfterEach
   public void destroy() {
     logger.info("Close zookeeper {}", zooKeeper);
     try {
@@ -112,25 +108,26 @@ public abstract class AbstractTest {
     String root = "/" + gen.nextString();
 
     ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE)
-        .thenAccept(zk -> ZooKeeperUtils.createPersistentZnode(zk, root, null)
-        .whenComplete((v, cause) -> {
-          try {
-            zk.close();
-          } catch (InterruptedException e) {
-            logger.warn("Error happened when close zookeeper", e);
-          }
-        })).get();
+        .thenAccept(
+            zk ->
+                ZooKeeperUtils.createPersistentZnode(zk, root, null)
+                    .whenComplete(
+                        (v, cause) -> {
+                          try {
+                            zk.close();
+                          } catch (InterruptedException e) {
+                            logger.warn("Error happened when close zookeeper", e);
+                          }
+                        }))
+        .get();
     return zkTestServer.getConnectString() + root;
   }
 
   static class RandomString {
 
-    /**
-     * Generate a random string.
-     */
+    /** Generate a random string. */
     String nextString() {
-      for (int idx = 0; idx < buf.length; ++idx)
-        buf[idx] = symbols[random.nextInt(symbols.length)];
+      for (int idx = 0; idx < buf.length; ++idx) buf[idx] = symbols[random.nextInt(symbols.length)];
       return new String(buf);
     }
 
@@ -156,26 +153,19 @@ public abstract class AbstractTest {
       this.buf = new char[length];
     }
 
-    /**
-     * Create an alphanumeric string generator.
-     */
+    /** Create an alphanumeric string generator. */
     public RandomString(int length, Random random) {
       this(length, random, alphanum);
     }
 
-    /**
-     * Create an alphanumeric strings from a secure generator.
-     */
+    /** Create an alphanumeric strings from a secure generator. */
     public RandomString(int length) {
       this(length, new SecureRandom());
     }
 
-    /**
-     * Create session identifiers.
-     */
+    /** Create session identifiers. */
     public RandomString() {
       this(21);
     }
-
   }
 }

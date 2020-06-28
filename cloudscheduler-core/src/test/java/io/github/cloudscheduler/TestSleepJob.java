@@ -27,9 +27,7 @@ package io.github.cloudscheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class TestSleepJob implements Job {
 
   private static final Logger logger = LoggerFactory.getLogger(TestSleepJob.class);

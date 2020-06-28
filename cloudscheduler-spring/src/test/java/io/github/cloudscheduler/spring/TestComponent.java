@@ -26,9 +26,6 @@ package io.github.cloudscheduler.spring;
 
 import org.springframework.stereotype.Component;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 @Component
-public class TestComponent {
-}
+public class TestComponent {}

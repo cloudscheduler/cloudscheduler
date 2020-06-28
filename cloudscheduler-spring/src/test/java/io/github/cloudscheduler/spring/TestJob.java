@@ -26,21 +26,19 @@ package io.github.cloudscheduler.spring;
 
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobExecutionContext;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * Job implementation for test
+ *
  * @author Wei Gao
  */
 @Component
 public class TestJob implements Job {
-  @Autowired
-  private TestComponent testComponent;
+  @Autowired private TestComponent testComponent;
 
   private final CountDownLatch counter = new CountDownLatch(1);
 

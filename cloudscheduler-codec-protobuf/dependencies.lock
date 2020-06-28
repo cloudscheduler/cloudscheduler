@@ -1,0 +1,108 @@
+{
+    "compileClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "io.protostuff:protostuff-api": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-core": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-runtime": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        }
+    },
+    "jacocoAgent": {
+        "org.jacoco:org.jacoco.agent": {
+            "locked": "0.8.5"
+        }
+    },
+    "jacocoAnt": {
+        "org.jacoco:org.jacoco.ant": {
+            "locked": "0.8.5"
+        }
+    },
+    "runtimeClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "io.protostuff:protostuff-api": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-collectionschema": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-core": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-runtime": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        }
+    },
+    "testCompileClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "io.protostuff:protostuff-api": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-core": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-runtime": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "org.assertj:assertj-core": {
+            "locked": "3.16.1",
+            "requested": "3.+"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        }
+    },
+    "testRuntimeClasspath": {
+        "io.github.cloudscheduler:cloudscheduler-api": {
+            "project": true
+        },
+        "io.protostuff:protostuff-api": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-collectionschema": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-core": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "io.protostuff:protostuff-runtime": {
+            "locked": "1.7.2",
+            "requested": "1.+"
+        },
+        "org.assertj:assertj-core": {
+            "locked": "3.16.1",
+            "requested": "3.+"
+        },
+        "org.junit.jupiter:junit-jupiter-api": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        },
+        "org.junit.jupiter:junit-jupiter-engine": {
+            "locked": "5.7.0-M1",
+            "requested": "5.+"
+        }
+    }
+}

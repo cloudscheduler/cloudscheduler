@@ -30,5 +30,9 @@ package io.github.cloudscheduler;
  * @author Wei Gao
  */
 public enum EventType {
-  CONNECTION_LOST, ENTITY_CREATED, ENTITY_UPDATED, ENTITY_DELETED, CHILD_CHANGED
+  CONNECTION_LOST,
+  ENTITY_CREATED,
+  ENTITY_UPDATED,
+  ENTITY_DELETED,
+  CHILD_CHANGED
 }

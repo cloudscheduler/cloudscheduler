@@ -31,14 +31,13 @@ import java.util.ServiceLoader;
 import java.util.UUID;
 
 /**
- * <p>Cloud scheduler observer. Cloud scheduler will call methods on observer based on events.</p>
+ * Cloud scheduler observer. Cloud scheduler will call methods on observer based on events.
  *
- * <p>Cloud scheduler use {@link ServiceLoader} to find all implementations.
- * Please refer to {@link ServiceLoader} javadoc on how to register your implementation
- * of CloudSchedulerObserver.</p>
+ * <p>Cloud scheduler use {@link ServiceLoader} to find all implementations. Please refer to {@link
+ * ServiceLoader} javadoc on how to register your implementation of CloudSchedulerObserver.
  *
- * <p>Cloud scheduler event will be dispatched by single thread, slow implementation could
- * block events got dispatched.</p>
+ * <p>Cloud scheduler event will be dispatched by single thread, slow implementation could block
+ * events got dispatched.
  *
  * @author Wei Gao
  */
@@ -60,7 +59,7 @@ public interface CloudSchedulerObserver {
    * Been called while a master node up. (On master node)
    *
    * @param nodeId master node id
-   * @param time   master node start time
+   * @param time master node start time
    */
   void masterNodeUp(UUID nodeId, Instant time);
 
@@ -68,7 +67,7 @@ public interface CloudSchedulerObserver {
    * Been called while a master node down. (On master node)
    *
    * @param nodeId master node id
-   * @param time   master node down time
+   * @param time master node down time
    */
   void masterNodeDown(UUID nodeId, Instant time);
 
@@ -76,7 +75,7 @@ public interface CloudSchedulerObserver {
    * Been called while a worker node up. (On a worker node)
    *
    * @param nodeId worker node id
-   * @param time   worker node up time
+   * @param time worker node up time
    */
   void workerNodeUp(UUID nodeId, Instant time);
 
@@ -84,7 +83,7 @@ public interface CloudSchedulerObserver {
    * Been called while a worker node down. (On a worker node)
    *
    * @param nodeId worker node id
-   * @param time   worker node down time
+   * @param time worker node down time
    */
   void workerNodeDown(UUID nodeId, Instant time);
 
@@ -92,14 +91,14 @@ public interface CloudSchedulerObserver {
    * Been called after a worker node been removed. (On master node)
    *
    * @param nodeId worker node id
-   * @param time   worker node down time
+   * @param time worker node down time
    */
   void workerNodeRemoved(UUID nodeId, Instant time);
 
   /**
    * A job definition been paused. (On master node)
    *
-   * @param id   job definition id
+   * @param id job definition id
    * @param time job definition been paused time
    */
   void jobDefinitionPaused(UUID id, Instant time);
@@ -107,16 +106,16 @@ public interface CloudSchedulerObserver {
   /**
    * A job definition resumed from pause. (On master node)
    *
-   * @param id   job definition id
+   * @param id job definition id
    * @param time job definition resumed time
    */
   void jobDefinitionResumed(UUID id, Instant time);
 
   /**
-   * A job definition completed. This method will be called before last job instance complete.
-   * (On master node)
+   * A job definition completed. This method will be called before last job instance complete. (On
+   * master node)
    *
-   * @param id   job definition id
+   * @param id job definition id
    * @param time job definition finished time
    */
   void jobDefinitionCompleted(UUID id, Instant time);
@@ -124,7 +123,7 @@ public interface CloudSchedulerObserver {
   /**
    * A job definition been removed. (On master node)
    *
-   * @param id   job definition id
+   * @param id job definition id
    * @param time job definition been removed time
    */
   void jobDefinitionRemoved(UUID id, Instant time);
@@ -133,8 +132,8 @@ public interface CloudSchedulerObserver {
    * A job instance been scheduled. (On master node)
    *
    * @param jobDefId job definition id
-   * @param jobInId  job instance id
-   * @param time     job instance been scheduled time
+   * @param jobInId job instance id
+   * @param time job instance been scheduled time
    */
   void jobInstanceScheduled(UUID jobDefId, UUID jobInId, Instant time);
 
@@ -142,9 +141,9 @@ public interface CloudSchedulerObserver {
    * A job instance has started. (On worker node)
    *
    * @param jobDefId job definition id
-   * @param jobInId  job instance id
-   * @param nodeId   job instance starting on node id
-   * @param time     job instance starting time
+   * @param jobInId job instance id
+   * @param nodeId job instance starting on node id
+   * @param time job instance starting time
    */
   void jobInstanceStarted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time);
 
@@ -152,9 +151,9 @@ public interface CloudSchedulerObserver {
    * A job instance completed. (On worker node)
    *
    * @param jobDefId job definition id
-   * @param jobInId  job instance id
-   * @param nodeId   job instance complete on node id
-   * @param time     job instance complete time
+   * @param jobInId job instance id
+   * @param nodeId job instance complete on node id
+   * @param time job instance complete time
    */
   void jobInstanceCompleted(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time);
 
@@ -162,9 +161,9 @@ public interface CloudSchedulerObserver {
    * A job instance failed. (On worker node)
    *
    * @param jobDefId job definition id
-   * @param jobInId  job instance id
-   * @param nodeId   job instance failed on node id
-   * @param time     job instance failed time
+   * @param jobInId job instance id
+   * @param nodeId job instance failed on node id
+   * @param time job instance failed time
    */
   void jobInstanceFailed(UUID jobDefId, UUID jobInId, UUID nodeId, Instant time);
 
@@ -172,8 +171,8 @@ public interface CloudSchedulerObserver {
    * A job instance been removed after cleanup. (On master node)
    *
    * @param jobDefId job definition id
-   * @param jobInId  job instance id
-   * @param time     job instance removed time
+   * @param jobInId job instance id
+   * @param time job instance removed time
    */
   void jobInstanceRemoved(UUID jobDefId, UUID jobInId, Instant time);
 }

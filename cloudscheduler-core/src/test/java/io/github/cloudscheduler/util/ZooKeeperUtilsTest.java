@@ -24,88 +24,92 @@
 
 package io.github.cloudscheduler.util;
 
-import io.github.cloudscheduler.codec.EntityCodec;
-
+// import io.github.cloudscheduler.codec.EntityCodec;
+//
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class ZooKeeperUtilsTest {
-  private final static Logger logger = LoggerFactory.getLogger(ZooKeeperUtilsTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(ZooKeeperUtilsTest.class);
 
-  private TestingServer zkTestServer;
-  private ExecutorService threadPool;
-  private ZooKeeper zooKeeper;
-  private EntityCodec<byte[]> codec = new EntityCodec<byte[]>() {
-    @Override
-    public byte[] encode(byte[] entity) {
-      return entity;
-    }
+  private static TestingServer zkTestServer;
+  private static ExecutorService threadPool;
+  private static ZooKeeper zooKeeper;
+  //  private EntityCodec<byte[]> codec = new EntityCodec<byte[]>() {
+  //    @Override
+  //    public byte[] encode(byte[] entity) {
+  //      return entity;
+  //    }
+  //
+  //    @Override
+  //    public byte[] decode(byte[] data) {
+  //      return data;
+  //    }
+  //  };
+  private static String path = "/test";
 
-    @Override
-    public byte[] decode(byte[] data) {
-      return data;
-    }
-  };
-  private String path = "/test";
-
-  @BeforeClass
-  public void init() throws Exception {
+  @BeforeAll
+  public static void init() throws Exception {
     logger.info("Starting zookeeper");
     AtomicInteger threadCounter = new AtomicInteger(0);
-    threadPool = Executors.newCachedThreadPool(r -> {
-      Thread t = new Thread(r);
-      t.setName("worker-" + threadCounter.incrementAndGet());
-      return t;
-    });
+    threadPool =
+        Executors.newCachedThreadPool(
+            r -> {
+              Thread t = new Thread(r);
+              t.setName("worker-" + threadCounter.incrementAndGet());
+              return t;
+            });
     zkTestServer = new TestingServer();
-    zooKeeper = ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE).get();
-    ZooKeeperUtils.createZnode(zooKeeper, path, CreateMode.PERSISTENT, new byte[] {0x01, 0x02, 0x03, 0x04, 0x05}).get();
+    zooKeeper =
+        ZooKeeperUtils.connectToZooKeeper(zkTestServer.getConnectString(), Integer.MAX_VALUE).get();
+    ZooKeeperUtils.createZnode(
+            zooKeeper, path, CreateMode.PERSISTENT, new byte[] {0x01, 0x02, 0x03, 0x04, 0x05})
+        .get();
   }
 
-  private void closeZooKeeper(ZooKeeper zkClient, CountDownLatch countDownLatch) {
-    try {
-      if (zkClient != null) {
-        logger.trace("Close zookeeper.");
-        zkClient.close();
-      }
-    } catch (Throwable e) {
-      logger.info("Close zookeeper throw exception, ignore it.", e);
-    } finally {
-      countDownLatch.countDown();
-    }
-  }
+  //  private void closeZooKeeper(ZooKeeper zkClient, CountDownLatch countDownLatch) {
+  //    try {
+  //      if (zkClient != null) {
+  //        logger.trace("Close zookeeper.");
+  //        zkClient.close();
+  //      }
+  //    } catch (Throwable e) {
+  //      logger.info("Close zookeeper throw exception, ignore it.", e);
+  //    } finally {
+  //      countDownLatch.countDown();
+  //    }
+  //  }
 
-  @AfterClass
-  public void destroy() throws Exception {
+  @AfterAll
+  public static void destroy() throws Exception {
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    ZooKeeperUtils.deleteIfExists(zooKeeper, path, true).whenComplete((v, cause) -> {
-      try {
-        zooKeeper.close();
-      } catch (Throwable e) {
-        logger.trace("Error when close zookeeper", e);
-      }
-      logger.info("Stop zookeeper");
-      try {
-        zkTestServer.close();
-      } catch (Throwable e) {
-        logger.trace("Error when close zookeeper server.", e);
-      }
-      threadPool.shutdown();
-      countDownLatch.countDown();
-    });
+    ZooKeeperUtils.deleteIfExists(zooKeeper, path, true)
+        .whenComplete(
+            (v, cause) -> {
+              try {
+                zooKeeper.close();
+              } catch (Throwable e) {
+                logger.trace("Error when close zookeeper", e);
+              }
+              logger.info("Stop zookeeper");
+              try {
+                zkTestServer.close();
+              } catch (Throwable e) {
+                logger.trace("Error when close zookeeper server.", e);
+              }
+              threadPool.shutdown();
+              countDownLatch.countDown();
+            });
     countDownLatch.await();
   }
 }

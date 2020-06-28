@@ -34,8 +34,7 @@ import java.util.UUID;
  * @author Wei Gao
  */
 abstract class NodeMixIn {
-  NodeMixIn(@JsonProperty("id") UUID id) {
-  }
+  NodeMixIn(@JsonProperty("id") UUID id) {}
 
   @JsonProperty("id")
   abstract UUID getId();

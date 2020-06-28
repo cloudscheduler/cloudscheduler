@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.codec;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobExecutionContext;
 import io.github.cloudscheduler.Node;
@@ -33,89 +35,89 @@ import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
 import io.github.cloudscheduler.model.JobRunStatus;
-import io.github.cloudscheduler.util.TestUtil;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 public abstract class AbstractCodecProviderTest {
   protected abstract EntityCodecProvider getCodecProvider();
 
   @Test
   public void testEncodeJobDefinition() throws IOException {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .startAt(Instant.now().plusSeconds(5))
-        .endAt(Instant.now().plus(Duration.ofDays(20)))
-        .name("TestJob")
-        .fixedRate(Duration.ofHours(2))
-        .repeat(500)
-        .global()
-        .allowDupInstances()
-        .build();
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .startAt(Instant.now().plusSeconds(5))
+            .endAt(Instant.now().plus(Duration.ofDays(20)))
+            .name("TestJob")
+            .fixedRate(Duration.ofHours(2))
+            .repeat(500)
+            .global()
+            .allowDupInstances()
+            .build();
 
     EntityEncoder<JobDefinition> encoder = getCodecProvider().getEntityEncoder(JobDefinition.class);
-    Assert.assertNotNull(encoder);
+    assertThat(encoder).isNotNull();
     byte[] data = encoder.encode(job);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
   }
 
   @Test
   public void testEncodeDecodeJobDefinition1() throws IOException {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .startAt(Instant.now().plusSeconds(5))
-        .endAt(Instant.now().plus(Duration.ofDays(20)))
-        .name("TestJob")
-        .fixedRate(Duration.ofHours(2))
-        .repeat(500)
-        .global()
-        .allowDupInstances()
-        .build();
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .startAt(Instant.now().plusSeconds(5))
+            .endAt(Instant.now().plus(Duration.ofDays(20)))
+            .name("TestJob")
+            .fixedRate(Duration.ofHours(2))
+            .repeat(500)
+            .global()
+            .allowDupInstances()
+            .build();
 
     EntityCodec<JobDefinition> codec = getCodecProvider().getEntityCodec(JobDefinition.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(job);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     JobDefinition job1 = codec.decode(data);
-    TestUtil.jobDefinitionDeepEqual(job1, job);
+    assertThat(job1).isEqualToIgnoringGivenFields(job, "data");
   }
 
   @Test
   public void testEncodeDecodeJobDefinition2() throws IOException {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .cron("5 10 * * *")
-        .name("TestJob")
-        .repeat(500)
-        .jobData("Initial value", 10)
-        .build();
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .cron("5 10 * * *")
+            .name("TestJob")
+            .repeat(500)
+            .jobData("Initial value", 10)
+            .build();
 
     EntityCodec<JobDefinition> codec = getCodecProvider().getEntityCodec(JobDefinition.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(job);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     JobDefinition job1 = codec.decode(data);
-    TestUtil.jobDefinitionDeepEqual(job1, job);
+    assertThat(job1).isEqualToComparingFieldByField(job);
   }
 
   @Test
   public void testEncodeDecodeJobDefinition3() throws IOException {
-    JobDefinition job = JobDefinition.newBuilder(TestJob.class)
-        .initialDelay(Duration.ofSeconds(15))
-        .fixedDelay(Duration.ofMinutes(50))
-        .name("TestJob")
-        .jobData("Initial value", true)
-        .build();
+    JobDefinition job =
+        JobDefinition.newBuilder(TestJob.class)
+            .initialDelay(Duration.ofSeconds(15))
+            .fixedDelay(Duration.ofMinutes(50))
+            .name("TestJob")
+            .jobData("Initial value", true)
+            .build();
 
     EntityCodec<JobDefinition> codec = getCodecProvider().getEntityCodec(JobDefinition.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(job);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     JobDefinition job1 = codec.decode(data);
-    TestUtil.jobDefinitionDeepEqual(job1, job);
+    assertThat(job1).isEqualToComparingFieldByField(job);
   }
 
   @Test
@@ -125,10 +127,11 @@ public abstract class AbstractCodecProviderTest {
     status.setLastScheduleTime(Instant.now());
     status.setRunCount(10);
 
-    EntityEncoder<JobDefinitionStatus> encoder = getCodecProvider().getEntityEncoder(JobDefinitionStatus.class);
-    Assert.assertNotNull(encoder);
+    EntityEncoder<JobDefinitionStatus> encoder =
+        getCodecProvider().getEntityEncoder(JobDefinitionStatus.class);
+    assertThat(encoder).isNotNull();
     byte[] data = encoder.encode(status);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
   }
 
   @Test
@@ -139,12 +142,13 @@ public abstract class AbstractCodecProviderTest {
     status.setRunCount(10);
     status.setLastCompleteTime(Instant.now().plusSeconds(500));
 
-    EntityCodec<JobDefinitionStatus> codec = getCodecProvider().getEntityCodec(JobDefinitionStatus.class);
-    Assert.assertNotNull(codec);
+    EntityCodec<JobDefinitionStatus> codec =
+        getCodecProvider().getEntityCodec(JobDefinitionStatus.class);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(status);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     JobDefinitionStatus status1 = codec.decode(data);
-    TestUtil.jobDefinitionStatusDeepEqual(status1, status);
+    assertThat(status1).isEqualToComparingFieldByField(status);
   }
 
   @Test
@@ -154,9 +158,9 @@ public abstract class AbstractCodecProviderTest {
     instance.setJobState(JobInstanceState.COMPLETE);
 
     EntityEncoder<JobInstance> encoder = getCodecProvider().getEntityEncoder(JobInstance.class);
-    Assert.assertNotNull(encoder);
+    assertThat(encoder).isNotNull();
     byte[] data = encoder.encode(instance);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
   }
 
   @Test
@@ -170,11 +174,11 @@ public abstract class AbstractCodecProviderTest {
     instance.getRunStatus().put(runStatus.getNodeId(), runStatus);
 
     EntityCodec<JobInstance> codec = getCodecProvider().getEntityCodec(JobInstance.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(instance);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     JobInstance instance1 = codec.decode(data);
-    TestUtil.jobInstanceDeepEqual(instance1, instance);
+    assertThat(instance1).usingRecursiveComparison().isEqualTo(instance);
   }
 
   @Test
@@ -182,18 +186,15 @@ public abstract class AbstractCodecProviderTest {
     Node node = new Node(UUID.randomUUID());
 
     EntityCodec<Node> codec = getCodecProvider().getEntityCodec(Node.class);
-    Assert.assertNotNull(codec);
+    assertThat(codec).isNotNull();
     byte[] data = codec.encode(node);
-    Assert.assertNotNull(data);
+    assertThat(data).isNotEmpty();
     Node node1 = codec.decode(data);
-    Assert.assertEquals(node1, node);
+    assertThat(node1).isEqualToComparingFieldByField(node);
   }
-
 
   public static final class TestJob implements Job {
     @Override
-    public void execute(JobExecutionContext ctx) {
-
-    }
+    public void execute(JobExecutionContext ctx) {}
   }
 }

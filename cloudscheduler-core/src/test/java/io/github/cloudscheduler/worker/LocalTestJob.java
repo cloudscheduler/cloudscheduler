@@ -26,18 +26,14 @@ package io.github.cloudscheduler.worker;
 
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobExecutionContext;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author Wei Gao
- */
+/** @author Wei Gao */
 public class LocalTestJob implements Job {
   private static final Logger logger = LoggerFactory.getLogger(LocalTestJob.class);
 
-  public LocalTestJob() {
-  }
+  public LocalTestJob() {}
 
   @Override
   public void execute(JobExecutionContext ctx) {

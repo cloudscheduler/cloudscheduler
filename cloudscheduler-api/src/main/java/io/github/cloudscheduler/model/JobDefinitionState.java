@@ -30,9 +30,9 @@ package io.github.cloudscheduler.model;
  * @author Wei Gao
  */
 public enum JobDefinitionState {
-  CREATED,     // Created, keep running
-  FINISHED,    // Either reach end time or repeat time. expired
-  PAUSED;      // Paused by user
+  CREATED, // Created, keep running
+  FINISHED, // Either reach end time or repeat time. expired
+  PAUSED; // Paused by user
 
   /**
    * Check if this job definition state is completed.

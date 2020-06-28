@@ -55,8 +55,7 @@ public class AutowiringSpringBeanJobFactory implements JobFactory, ApplicationCo
   }
 
   @Override
-  public void setApplicationContext(ApplicationContext applicationContext)
-      throws BeansException {
+  public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
     this.appContext = applicationContext;
   }
 }
