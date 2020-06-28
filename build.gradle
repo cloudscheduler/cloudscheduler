@@ -29,7 +29,7 @@ ext {
 
 allprojects {
     group = 'io.github.cloudscheduler'
-    version = '1.0.3'
+    version = '1.0.4-SNAPSHOT'
 
     apply plugin: 'nebula.lint'
     apply plugin: 'nebula.dependency-lock'
