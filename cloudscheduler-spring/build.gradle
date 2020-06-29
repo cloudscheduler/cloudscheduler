@@ -19,3 +19,6 @@ dependencies {
 }
 
 description = 'Cloud Scheduler spring module'
+
+publishing.publications.mavenJava.pom.name = "Cloud Scheduler spring module"
+publishing.publications.mavenJava.pom.description = "The Cloud Scheduler spring framework integration"

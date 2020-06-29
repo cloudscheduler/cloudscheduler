@@ -12,3 +12,6 @@ dependencies {
 }
 
 description = 'Cloud Scheduler codec protobuf module'
+
+publishing.publications.mavenJava.pom.name = "Cloud Scheduler codec protobuf module"
+publishing.publications.mavenJava.pom.description = "The Cloud Scheduler codec protobuf provider"
