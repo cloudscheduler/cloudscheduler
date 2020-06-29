@@ -13,3 +13,6 @@ dependencies {
 }
 
 description = 'Cloud Scheduler codec json module'
+
+publishing.publications.mavenJava.pom.name = "Cloud Scheduler codec json module"
+publishing.publications.mavenJava.pom.description = "The Cloud Scheduler codec json provider"

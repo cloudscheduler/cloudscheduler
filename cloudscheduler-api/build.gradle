@@ -3,3 +3,6 @@
  */
 
 description = 'Cloud Scheduler API module'
+
+publishing.publications.mavenJava.pom.name = "Cloud Scheduler API module"
+publishing.publications.mavenJava.pom.description = "The Cloud Scheduler API"

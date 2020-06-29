@@ -123,8 +123,6 @@ subprojects {
                     }
                 }
                 pom {
-                    name = project.description
-                    description = project.description
                     url = 'https://github.com/cloudscheduler/cloudscheduler'
                     licenses {
                         license {

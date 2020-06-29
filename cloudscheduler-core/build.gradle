@@ -13,3 +13,6 @@ dependencies {
 }
 
 description = 'Cloud Scheduler core module'
+
+publishing.publications.mavenJava.pom.name = "Cloud Scheduler core module"
+publishing.publications.mavenJava.pom.description = "The Cloud Scheduler core provider"
