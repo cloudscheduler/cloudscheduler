@@ -114,7 +114,17 @@ subprojects {
                 from(components.java)
                 artifact(sourcesJar)
                 artifact(javadocJar)
+                versionMapping {
+                    usage('java-api') {
+                        fromResolutionOf('runtimeClasspath')
+                    }
+                    usage('java-runtime') {
+                        fromResolutionResult()
+                    }
+                }
                 pom {
+                    name = project.description
+                    description = project.description
                     url = 'https://github.com/cloudscheduler/cloudscheduler'
                     licenses {
                         license {
