@@ -1,3 +1,5 @@
+apply plugin: 'maven-publish'
+
 buildscript {
     repositories {
         jcenter()
@@ -29,7 +31,7 @@ ext {
 
 allprojects {
     group = 'io.github.cloudscheduler'
-    version = '1.0.4-SNAPSHOT'
+    version = '1.0.3'
 
     apply plugin: 'nebula.lint'
     apply plugin: 'nebula.dependency-lock'
@@ -39,7 +41,6 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'jacoco'
     apply plugin: 'signing'
-    apply plugin: 'maven-publish'
     apply plugin: 'com.github.sherter.google-java-format'
 
     sourceCompatibility = '1.8'
@@ -98,14 +99,12 @@ subprojects {
         build.finalizedBy lintGradle
     }
 
-    signing {
-        useGpgCmd()
-        sign publishing.publications
-    }
-
     publishing {
         publications {
-            maven(MavenPublication) {
+            "$project.name"(MavenPublication) {
+                groupId project.group
+                artifactId project.name
+                version project.version
                 from(components.java)
                 artifact(sourcesJar)
                 artifact(javadocJar)
@@ -145,6 +144,11 @@ subprojects {
                 }
             }
         }
+    }
+
+    signing {
+        useGpgCmd()
+        sign publishing.publications."$project.name"
     }
 
     tasks.withType(JavaCompile) {
