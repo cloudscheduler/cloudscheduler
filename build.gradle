@@ -39,7 +39,7 @@ nexusStaging {
 
 allprojects {
     group = 'io.github.cloudscheduler'
-    version = '1.0.4-SNAPSHOT'
+    version = '1.0.3'
 
     apply plugin: 'nebula.lint'
     apply plugin: 'nebula.dependency-lock'
