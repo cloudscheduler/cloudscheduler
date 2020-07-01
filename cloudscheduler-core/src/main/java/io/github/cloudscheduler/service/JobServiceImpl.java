@@ -24,6 +24,8 @@
 
 package io.github.cloudscheduler.service;
 
+import static java.util.stream.Collectors.collectingAndThen;
+
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobException;
 import io.github.cloudscheduler.Node;
@@ -38,12 +40,6 @@ import io.github.cloudscheduler.model.JobRunStatus;
 import io.github.cloudscheduler.util.CompletableFutureUtils;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
 import io.github.cloudscheduler.util.retry.RetryStrategy;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -60,8 +56,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.collectingAndThen;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * JobService implementation. This class will initial zookeeper znodes in constructor. Since using
@@ -109,7 +108,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
             .fibonacci(250L)
             .random()
             .maxDelay(3000L)
-            .maxRetry(10)
+            .maxRetry(15)
             .retryOn(Collections.singletonList(KeeperException.class))
             .stopAt(
                 Arrays.asList(
@@ -560,7 +559,10 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                                           jsh.getVersion());
                                       return CompletableFuture.completedFuture(jobInstance);
                                     } catch (IOException e) {
-                                      throw new RuntimeException(e);
+                                      CompletableFuture<JobInstance> future =
+                                          new CompletableFuture<>();
+                                      future.completeExceptionally(e);
+                                      return future;
                                     }
                                   });
                             });

@@ -85,9 +85,10 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   private ScheduledExecutorService scheduledThreadPool;
   private JobService jobService;
   private DistributedLock masterLock;
-  private CompletableFuture<?> scanJobDefJob;
-  private CompletableFuture<?> scanWorkerNodeJob;
+  private CompletableFuture<Void> scanJobDefJob;
+  private CompletableFuture<Void> scanWorkerNodeJob;
   private CompletableFuture<ZooKeeper> zkConnector;
+  private final boolean zkConnectorOwner;
 
   /**
    * Constructor.
@@ -124,26 +125,57 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     scanningWorkerNodes = new AtomicBoolean(false);
     processors = new ConcurrentHashMap<>();
     workerNodes = new HashSet<>();
+    this.zkConnectorOwner = true;
+  }
+
+  public SchedulerMaster(
+      Node node,
+      CompletableFuture<ZooKeeper> zkConnector,
+      JobFactory jobFactory,
+      ExecutorService customerThreadPool,
+      CloudSchedulerObserver observer) {
+    Objects.requireNonNull(node, "Node is mandatory");
+    Objects.requireNonNull(zkConnector, "ZooKeeper connector is mandatory");
+    Objects.requireNonNull(jobFactory, "JobFactory is mandatory");
+    Objects.requireNonNull(customerThreadPool, "Customer provided thread pool is mandatory");
+    Objects.requireNonNull(observer, "Observer is mandatory");
+    this.node = node;
+    this.zkUrl = null;
+    this.zkTimeout = -1;
+    this.jobFactory = jobFactory;
+    this.customerThreadPool = customerThreadPool;
+    this.observer = observer;
+    running = new AtomicBoolean(false);
+    jobDefinitionChanged = new AtomicBoolean(true);
+    scanningJobDefinitions = new AtomicBoolean(false);
+    workerNodeChanged = new AtomicBoolean(true);
+    scanningWorkerNodes = new AtomicBoolean(false);
+    processors = new ConcurrentHashMap<>();
+    workerNodes = new HashSet<>();
+    this.zkConnector = zkConnector;
+    this.zkConnectorOwner = false;
   }
 
   /** Start scheduler master. */
+  @Override
   public void start() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler master");
-      zkConnector = new CompletableFuture<>();
       scanWorkerNodeJob = CompletableFuture.completedFuture(null);
       scanJobDefJob = CompletableFuture.completedFuture(null);
       workerNodeChanged.set(true);
       jobDefinitionChanged.set(true);
-      zkConnector =
-          ZooKeeperUtils.connectToZooKeeper(
-              zkUrl,
-              zkTimeout,
-              eventType -> {
-                if (eventType == EventType.CONNECTION_LOST) {
-                  lostConnection();
-                }
-              });
+      if (zkConnectorOwner) {
+        zkConnector =
+            ZooKeeperUtils.connectToZooKeeper(
+                zkUrl,
+                zkTimeout,
+                eventType -> {
+                  if (eventType == EventType.CONNECTION_LOST) {
+                    lostConnection();
+                  }
+                });
+      }
       zkConnector.thenAccept(this::initialMaster);
     }
   }
@@ -192,8 +224,10 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutting down scheduler master");
-      zkConnector.cancel(false);
       CompletableFuture<ZooKeeper> t = zkConnector;
+      if (zkConnectorOwner) {
+        zkConnector.cancel(false);
+      }
       zkConnector = new CompletableFuture<>();
       return t.exceptionally(
               e -> {
@@ -279,7 +313,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       logger.trace("In scan worker node loop.");
       scanWorkerNodeJob =
           scanWorkerNodeJob.thenCompose(
-              v ->
+              __ ->
                   jobService
                       .getCurrentWorkersAsync(
                           eventType -> {
@@ -296,8 +330,8 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                           nodes -> {
                             logger.trace("Scan worker nodes get {} records", nodes.size());
                             return processWorkerNodes(nodes)
-                                .thenApply(
-                                    n -> {
+                                .thenAccept(
+                                    ___ -> {
                                       Set<UUID> previousNodes = new HashSet<>(workerNodes);
                                       previousNodes.removeAll(nodes);
                                       workerNodes.addAll(nodes);
@@ -309,7 +343,6 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                                         previousNodes.forEach(
                                             id -> observer.workerNodeRemoved(id, now));
                                       }
-                                      return previousNodes.size();
                                     });
                           },
                           threadPool)

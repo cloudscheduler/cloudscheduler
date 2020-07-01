@@ -25,6 +25,7 @@
 package io.github.cloudscheduler;
 
 import io.github.cloudscheduler.master.SchedulerMaster;
+import io.github.cloudscheduler.util.ZooKeeperUtils;
 import io.github.cloudscheduler.worker.SchedulerWorker;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,13 +49,21 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class CloudSchedulerManager extends CompletableFuture<Void> implements AsyncService {
+public class CloudSchedulerManager implements AsyncService {
   private static final Logger logger = LoggerFactory.getLogger(CloudSchedulerManager.class);
 
-  private final SchedulerMaster master;
-  private final SchedulerWorker worker;
-  private final List<NodeRole> nodeRoles;
+  private SchedulerMaster master;
+  private SchedulerWorker worker;
   private final AtomicBoolean running;
+  private CompletableFuture<ZooKeeper> zkConnector;
+  private ZooKeeper zooKeeper;
+  private final String zkUrl;
+  private final int zkTimeout;
+  private final List<NodeRole> roles;
+  private final Node node;
+  private final JobFactory jobFactory;
+  private final CloudSchedulerObserver observer;
+  private final ExecutorService customerThreadPool;
 
   /**
    * Constructor.
@@ -72,35 +82,52 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
       JobFactory jobFactory,
       CloudSchedulerObserver observer,
       List<NodeRole> roles) {
-    nodeRoles = roles;
-    Node node = new Node(nodeId);
-    master = new SchedulerMaster(node, zkUrl, zkTimeout, jobFactory, customerThreadPool, observer);
-    worker = new SchedulerWorker(node, zkUrl, zkTimeout, customerThreadPool, jobFactory, observer);
+    this.node = new Node(nodeId);
+    this.zkUrl = zkUrl;
+    this.zkTimeout = zkTimeout;
+    this.customerThreadPool = customerThreadPool;
+    this.jobFactory = jobFactory;
+    this.observer = observer;
+    this.roles = roles;
     running = new AtomicBoolean(false);
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
   }
 
   /** Start this cloud scheduler manager. */
+  @Override
   public void start() {
     if (running.compareAndSet(false, true)) {
+      zkConnector =
+          ZooKeeperUtils.connectToZooKeeper(
+                  zkUrl,
+                  zkTimeout,
+                  eventType -> {
+                    if (eventType == EventType.CONNECTION_LOST) {
+                      lostConnection();
+                    }
+                  })
+              .whenComplete(
+                  (zk, ___) -> {
+                    if (zk != null) {
+                      zooKeeper = zk;
+                    }
+                  });
       List<CompletableFuture<Void>> fs = new ArrayList<>(2);
-      if (nodeRoles.contains(NodeRole.MASTER)) {
+      if (roles.contains(NodeRole.MASTER)) {
+        master = new SchedulerMaster(node, zkConnector, jobFactory, customerThreadPool, observer);
         master.start();
         fs.add(master);
+      } else {
+        master = null;
       }
-      if (nodeRoles.contains(NodeRole.WORKER)) {
+      if (roles.contains(NodeRole.WORKER)) {
+        worker = new SchedulerWorker(node, zkConnector, customerThreadPool, jobFactory, observer);
         worker.start();
         fs.add(worker);
+      } else {
+        worker = null;
       }
-      CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-          .whenComplete(
-              (v, cause) -> {
-                if (cause != null) {
-                  completeExceptionally(cause);
-                } else {
-                  complete(null);
-                }
-              });
+      CompletableFuture.allOf(fs.toArray(new CompletableFuture[0])).join();
     }
   }
 
@@ -108,32 +135,51 @@ public class CloudSchedulerManager extends CompletableFuture<Void> implements As
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutting down cloud scheduler manager");
-      return this.exceptionally(
-              cause -> {
-                logger.error("Error happened when start cloud scheduler manager.", cause);
-                return null;
-              })
-          .thenCompose(
-              v ->
-                  worker
-                      .shutdownAsync()
-                      .exceptionally(
-                          cause -> {
-                            logger.warn("Error happened when shutdown scheduler worker", cause);
-                            return null;
-                          })
-                      .thenCombine(
-                          master
-                              .shutdownAsync()
-                              .exceptionally(
-                                  cause -> {
-                                    logger.warn(
-                                        "Error happened when shutdown scheduler master", cause);
-                                    return null;
-                                  }),
-                          (a, b) -> null));
+      zkConnector.cancel(false);
+      List<CompletableFuture<Void>> fs = new ArrayList<>(2);
+      if (worker != null) {
+        fs.add(
+            worker
+                .shutdownAsync()
+                .exceptionally(
+                    cause -> {
+                      logger.warn("Error happened when shutdown scheduler worker", cause);
+                      return null;
+                    }));
+        worker = null;
+      }
+      if (master != null) {
+        fs.add(
+            master
+                .shutdownAsync()
+                .exceptionally(
+                    cause -> {
+                      logger.warn("Error happened when shutdown scheduler master", cause);
+                      return null;
+                    }));
+        master = null;
+      }
+      return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
+          .thenAccept(
+              ___ -> {
+                if (zooKeeper != null) {
+                  try {
+                    zooKeeper.close();
+                  } catch (InterruptedException e) {
+                    logger.warn("Error happened when close zookeeper client", e);
+                  }
+                  zooKeeper = null;
+                }
+              });
     } else {
       return CompletableFuture.completedFuture(null);
+    }
+  }
+
+  private void lostConnection() {
+    if (running.get()) {
+      logger.warn("CloudSchedulerManager lost connection");
+      shutdownAsync().whenComplete((v, cause) -> start());
     }
   }
 

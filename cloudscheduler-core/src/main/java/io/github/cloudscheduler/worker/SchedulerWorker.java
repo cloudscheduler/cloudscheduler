@@ -70,8 +70,9 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
   private final JobFactory jobFactory;
   private ExecutorService threadPool;
   private JobService jobService;
-  private CompletableFuture<?> scanJobInsJob;
+  private CompletableFuture<Void> scanJobInsJob;
   private CompletableFuture<ZooKeeper> zkConnector;
+  private final boolean zkConnectorOwner;
 
   /**
    * Constructor.
@@ -102,24 +103,49 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
     scanning = new AtomicBoolean(false);
     processors = new ConcurrentHashMap<>();
     this.observer = observer;
+    this.zkConnectorOwner = true;
+  }
+
+  public SchedulerWorker(
+      Node node,
+      CompletableFuture<ZooKeeper> zkConnector,
+      ExecutorService customerThreadPool,
+      JobFactory jobFactory,
+      CloudSchedulerObserver observer) {
+    Objects.requireNonNull(node, "Node is mandatory");
+    Objects.requireNonNull(zkConnector, "ZooKeeper connector is mandatory");
+    this.node = node;
+    this.zkUrl = null;
+    this.zkTimeout = -1;
+    this.jobFactory = jobFactory;
+    this.customerThreadPool = customerThreadPool;
+    running = new AtomicBoolean(false);
+    jobInstanceChanged = new AtomicBoolean(true);
+    scanning = new AtomicBoolean(false);
+    processors = new ConcurrentHashMap<>();
+    this.observer = observer;
+    this.zkConnector = zkConnector;
+    this.zkConnectorOwner = false;
   }
 
   /** Start scheduler worker. */
+  @Override
   public void start() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler worker");
       jobInstanceChanged.set(true);
-      zkConnector = new CompletableFuture<>();
       scanJobInsJob = CompletableFuture.completedFuture(null);
-      zkConnector =
-          ZooKeeperUtils.connectToZooKeeper(
-              zkUrl,
-              zkTimeout,
-              eventType -> {
-                if (eventType == EventType.CONNECTION_LOST) {
-                  lostConnection();
-                }
-              });
+      if (zkConnectorOwner) {
+        zkConnector =
+            ZooKeeperUtils.connectToZooKeeper(
+                zkUrl,
+                zkTimeout,
+                eventType -> {
+                  if (eventType == EventType.CONNECTION_LOST) {
+                    lostConnection();
+                  }
+                });
+      }
       zkConnector.thenAccept(this::initialWorker);
     }
   }
@@ -156,8 +182,10 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutting down scheduler worker");
-      zkConnector.cancel(false);
       CompletableFuture<ZooKeeper> t = zkConnector;
+      if (zkConnectorOwner) {
+        zkConnector.cancel(false);
+      }
       zkConnector = new CompletableFuture<>();
       return t.thenComposeAsync(
               zk ->

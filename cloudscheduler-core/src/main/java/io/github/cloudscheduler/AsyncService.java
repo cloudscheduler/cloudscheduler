@@ -33,6 +33,8 @@ import java.util.concurrent.ExecutionException;
  * @author Wei Gao
  */
 public interface AsyncService {
+  void start();
+
   /** Synchronized shutdown, by default will call async shutdown and wait till done. */
   default void shutdown() {
     try {
@@ -54,5 +56,5 @@ public interface AsyncService {
    *
    * @return completable future
    */
-  CompletableFuture<?> shutdownAsync();
+  CompletableFuture<Void> shutdownAsync();
 }

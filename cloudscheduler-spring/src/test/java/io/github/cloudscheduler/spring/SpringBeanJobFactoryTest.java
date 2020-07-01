@@ -1,5 +1,7 @@
 package io.github.cloudscheduler.spring;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.cloudscheduler.Job;
 import io.github.cloudscheduler.JobScheduleCalculator;
 import io.github.cloudscheduler.model.JobDefinition;
@@ -9,8 +11,6 @@ import mockit.Tested;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class SpringBeanJobFactoryTest {
   @Tested(availableDuringSetup = true)

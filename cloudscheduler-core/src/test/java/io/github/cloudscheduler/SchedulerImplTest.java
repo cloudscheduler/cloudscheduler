@@ -24,27 +24,23 @@
 
 package io.github.cloudscheduler;
 
+import static org.assertj.core.api.Assertions.*;
+
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.ScheduleMode;
+import io.github.cloudscheduler.service.JobServiceImpl;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-
-import io.github.cloudscheduler.service.JobService;
-import io.github.cloudscheduler.service.JobServiceImpl;
 import mockit.*;
 import org.apache.zookeeper.ZooKeeper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.assertj.core.api.Assertions.*;
 
 public class SchedulerImplTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerImplTest.class);
@@ -314,7 +310,9 @@ public class SchedulerImplTest {
                 cut.wrapException(
                     () -> {
                       throw new Exception("RootCause");
-                    })).havingCause().withMessage("RootCause");
+                    }))
+        .havingCause()
+        .withMessage("RootCause");
   }
 
   private void testPauseJob(boolean interrupt) {

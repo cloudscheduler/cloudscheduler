@@ -104,7 +104,8 @@ class JobDefinitionProcessor implements AsyncService {
         };
   }
 
-  void start() {
+  @Override
+  public void start() {
     if (running.compareAndSet(false, true)) {
       logger.info("Start JobDefinition processor for id: {}", jobDef.getId());
       // Schedule next job instance
@@ -113,6 +114,7 @@ class JobDefinitionProcessor implements AsyncService {
     }
   }
 
+  @Override
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutdown JobDefinition processor for id: {}", jobDef.getId());

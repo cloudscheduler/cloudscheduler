@@ -1,29 +1,21 @@
 package io.github.cloudscheduler.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.codec.EntityCodec;
 import io.github.cloudscheduler.codec.EntityCodecProvider;
 import io.github.cloudscheduler.codec.EntityDecoder;
+import io.github.cloudscheduler.codec.EntityEncoder;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
 import io.github.cloudscheduler.model.JobRunStatus;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-import mockit.Expectations;
-import mockit.Injectable;
-import mockit.Mock;
-import mockit.MockUp;
-import mockit.Mocked;
-import mockit.Tested;
-import mockit.Verifications;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.Transaction;
-import org.apache.zookeeper.ZooKeeper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.cloudscheduler.util.ZooKeeperUtils.EntityHolder;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -40,9 +32,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
+import mockit.Expectations;
+import mockit.Injectable;
+import mockit.Mock;
+import mockit.MockUp;
+import mockit.Mocked;
+import mockit.Tested;
+import mockit.Verifications;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Transaction;
+import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class JobServiceImplTest {
   @Tested(availableDuringSetup = true)
@@ -257,10 +258,10 @@ public class JobServiceImplTest {
         result = jdCodec;
         try {
           jdCodec.encode((JobDefinition) any);
+          result = new IOException();
         } catch (IOException e) {
           // ignore it.
         }
-        result = new IOException();
       }
     };
     assertThat(cut.saveJobDefinitionAsync(jobDef))
@@ -343,6 +344,27 @@ public class JobServiceImplTest {
                 jobDefId.toString());
       }
     };
+  }
+
+  @Test
+  public void testDeleteJobDefinitionAsyncNotFound(
+      @Mocked JobDefinition jobDef,
+      @Mocked JobInstance jobInstance,
+      @Mocked Transaction transaction) {
+    UUID jobDefId = UUID.randomUUID();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<Integer> exists(ZooKeeper zooKeeper, String dest) {
+        return CompletableFuture.completedFuture(null);
+      }
+    };
+    new Expectations() {
+      {
+        jobDef.getId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.deleteJobDefinitionAsync(jobDef)).isDone().isCompletedWithValue(null);
   }
 
   @Test
@@ -825,4 +847,143 @@ public class JobServiceImplTest {
       }
     };
   }
+
+  @Test
+  public void testScheduleJobInstanceAsyncJobDefinitionStatusNotFound(
+      @Mocked JobDefinition jobDef) {
+    Map<UUID, JobRunStatus> jobRunStatusMap = new HashMap<>();
+    UUID jobDefId = UUID.randomUUID();
+
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeperUtils.EntityHolder<JobDefinitionStatus>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<JobDefinitionStatus> decoder) {
+        return CompletableFuture.completedFuture(null);
+      }
+    };
+    new MockUp<JobInstance>() {
+      @Mock
+      public Map<UUID, JobRunStatus> getRunStatus() {
+        return jobRunStatusMap;
+      }
+    };
+    new Expectations() {
+      {
+        jobDef.getId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.scheduleJobInstanceAsync(jobDef))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testScheduleJobInstanceAsyncIOException(
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus status,
+      @Mocked Transaction transaction,
+      @Mocked EntityEncoder<JobInstance> jsEncoder) {
+    UUID jobDefId = UUID.randomUUID();
+
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeperUtils.EntityHolder<JobDefinitionStatus>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<JobDefinitionStatus> decoder) {
+        return CompletableFuture.completedFuture(new ZooKeeperUtils.EntityHolder<>(status, 1));
+      }
+
+      @Mock
+      public CompletableFuture<JobInstance> transactionalOperation(
+          ZooKeeper zooKeeper, Function<Transaction, CompletableFuture<JobInstance>> function) {
+        return function.apply(transaction);
+      }
+    };
+    new Expectations() {
+      {
+        jobDef.getId();
+        result = jobDefId;
+        codecProvider.getEntityEncoder(JobInstance.class);
+        result = jsEncoder;
+        try {
+          jsEncoder.encode((JobInstance) any);
+          result = new IOException();
+        } catch (IOException __) {
+          // ignore
+        }
+        jobDef.isGlobal();
+        result = false;
+      }
+    };
+    assertThat(cut.scheduleJobInstanceAsync(jobDef))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IOException.class);
+  }
+
+  @Test
+  public void testStartProcessJobInstanceAsync(@Mocked JobInstance jobIns) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    Map<UUID, JobRunStatus> jobRunStatusMap = new HashMap<>();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<JobInstance>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<JobInstance> decoder) {
+        return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+      }
+
+      @Mock
+      public CompletableFuture<Object> updateEntity(
+          ZooKeeper zooKeeper,
+          String dest,
+          Object entity,
+          EntityEncoder<JobInstance> encoder,
+          int version) {
+        return CompletableFuture.completedFuture(entity);
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatusMap;
+        jobIns.getId();
+        result = jobInsId;
+      }
+    };
+
+    assertThat(cut.startProcessJobInstanceAsync(jobInsId, nodeId))
+        .isDone()
+        .isCompletedWithValue(jobIns);
+    assertThat(jobRunStatusMap)
+        .containsKeys(nodeId)
+        .extractingByKey(nodeId)
+        .hasFieldOrPropertyWithValue("state", JobInstanceState.RUNNING);
+  }
+
+  @Test
+  public void testStartProcessJobInstanceAsyncNotFound(@Mocked JobInstance jobIns) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    Map<UUID, JobRunStatus> jobRunStatusMap = new HashMap<>();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<JobInstance>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<JobInstance> decoder) {
+        return CompletableFuture.completedFuture(null);
+      }
+    };
+
+    assertThat(cut.startProcessJobInstanceAsync(jobInsId, nodeId))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsync() {}
 }
