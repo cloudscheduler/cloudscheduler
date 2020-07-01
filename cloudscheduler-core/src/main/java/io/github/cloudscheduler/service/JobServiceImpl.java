@@ -689,7 +689,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                                             if (jsh == null) {
                                               return CompletableFutureUtils
                                                   .exceptionalCompletableFuture(
-                                                      new IllegalArgumentException(
+                                                      new IllegalStateException(
                                                           "Cannot find JobDefinition "
                                                               + "status by id: "
                                                               + jobInstanceId));

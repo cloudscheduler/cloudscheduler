@@ -985,5 +985,480 @@ public class JobServiceImplTest {
   }
 
   @Test
-  public void testCompleteJobInstanceAsync() {}
+  public void testCompleteJobInstanceAsync(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus,
+      @Mocked Transaction transaction) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId);
+    jobRunStatuses.put(nodeId, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    jobInstanceStates.put(jobInsId, JobInstanceState.RUNNING);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<JobInstance> transactionalOperation(
+          ZooKeeper zooKeeper, Function<Transaction, CompletableFuture<JobInstance>> function) {
+        return function.apply(transaction);
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getId();
+        result = jobInsId;
+        jobIns.getJobDefId();
+        result = jobDefId;
+        jobDefStatus.getJobInstanceState();
+        result = jobInstanceStates;
+        jobDefStatus.getId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedWithValue(jobIns);
+    new Verifications() {
+      {
+        JobInstanceState state;
+        jobIns.setJobState(state = withCapture());
+        assertThat(state).isEqualTo(JobInstanceState.COMPLETE);
+        transaction.setData(anyString, (byte[]) any, 1);
+        times = 2;
+      }
+    };
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncInstanceNotFound() {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        return CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageStartingWith("Cannot find JobInstance by id");
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncDefNotFound(@Mocked JobInstance jobIns) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getJobDefId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith("Cannot find JobDefinition for JobInstance");
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncNoNodeStatus(
+      @Mocked JobInstance jobIns, @Mocked JobDefinition jobDef) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getJobDefId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith("JobInstance(");
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncAlreadyComplete(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus,
+      @Mocked Transaction transaction) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId);
+    jobRunStatus.setState(JobInstanceState.COMPLETE);
+    jobRunStatuses.put(nodeId, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    jobInstanceStates.put(jobInsId, JobInstanceState.RUNNING);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getJobDefId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedWithValue(null);
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncDefStatusNotFound(
+      @Mocked JobInstance jobIns, @Mocked JobDefinition jobDef) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId);
+    jobRunStatuses.put(nodeId, jobRunStatus);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getJobDefId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith("Cannot find JobDefinition status");
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncInsStateNotFound(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId);
+    jobRunStatuses.put(nodeId, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getId();
+        result = jobInsId;
+        jobIns.getJobDefId();
+        result = jobDefId;
+        jobDefStatus.getJobInstanceState();
+        result = jobInstanceStates;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith("JobInstance state not exist in");
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncIOException(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus,
+      @Mocked Transaction transaction,
+      @Mocked EntityEncoder<JobInstance> jobInstanceEncoder) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId);
+    jobRunStatuses.put(nodeId, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    jobInstanceStates.put(jobInsId, JobInstanceState.RUNNING);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<JobInstance> transactionalOperation(
+          ZooKeeper zooKeeper, Function<Transaction, CompletableFuture<JobInstance>> function) {
+        return function.apply(transaction);
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getId();
+        result = jobInsId;
+        jobIns.getJobDefId();
+        result = jobDefId;
+        jobDefStatus.getJobInstanceState();
+        result = jobInstanceStates;
+        codecProvider.getEntityEncoder(JobInstance.class);
+        result = jobInstanceEncoder;
+        try {
+          jobInstanceEncoder.encode((JobInstance) any);
+          result = new IOException();
+        } catch (IOException e) {
+        }
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId, state))
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(IOException.class);
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncGlobalComplete(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus,
+      @Mocked Transaction transaction) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId1 = UUID.randomUUID();
+    UUID nodeId2 = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId1);
+    jobRunStatuses.put(nodeId1, jobRunStatus);
+    jobRunStatus = new JobRunStatus(nodeId2);
+    jobRunStatus.setState(JobInstanceState.COMPLETE);
+    jobRunStatuses.put(nodeId2, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    jobInstanceStates.put(jobInsId, JobInstanceState.RUNNING);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<JobInstance> transactionalOperation(
+          ZooKeeper zooKeeper, Function<Transaction, CompletableFuture<JobInstance>> function) {
+        return function.apply(transaction);
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getId();
+        result = jobInsId;
+        jobIns.getJobDefId();
+        result = jobDefId;
+        jobDef.isGlobal();
+        result = true;
+        jobDefStatus.getJobInstanceState();
+        result = jobInstanceStates;
+        jobDefStatus.getId();
+        result = jobDefId;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId1, state))
+        .isDone()
+        .isCompletedWithValue(jobIns);
+    new Verifications() {
+      {
+        JobInstanceState state;
+        jobIns.setJobState(state = withCapture());
+        assertThat(state).isEqualTo(JobInstanceState.COMPLETE);
+        transaction.setData(anyString, (byte[]) any, 1);
+        times = 2;
+      }
+    };
+  }
+
+  @Test
+  public void testCompleteJobInstanceAsyncGlobalNotComplete(
+      @Mocked JobInstance jobIns,
+      @Mocked JobDefinition jobDef,
+      @Mocked JobDefinitionStatus jobDefStatus) {
+    UUID jobInsId = UUID.randomUUID();
+    UUID nodeId1 = UUID.randomUUID();
+    UUID nodeId2 = UUID.randomUUID();
+    UUID jobDefId = UUID.randomUUID();
+    JobInstanceState state = JobInstanceState.COMPLETE;
+    Map<UUID, JobRunStatus> jobRunStatuses = new HashMap<>();
+    JobRunStatus jobRunStatus = new JobRunStatus(nodeId1);
+    jobRunStatuses.put(nodeId1, jobRunStatus);
+    jobRunStatus = new JobRunStatus(nodeId2);
+    jobRunStatuses.put(nodeId2, jobRunStatus);
+    Map<UUID, JobInstanceState> jobInstanceStates = new HashMap<>();
+    jobInstanceStates.put(jobInsId, JobInstanceState.RUNNING);
+    AtomicBoolean updated = new AtomicBoolean(false);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<EntityHolder<Object>> readEntity(
+          ZooKeeper zooKeeper, String dest, EntityDecoder<Object> decoder) {
+        if (dest.endsWith(jobInsId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobIns, 1));
+        } else if (dest.endsWith(jobDefId.toString())) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDef, 1));
+        } else if (dest.endsWith(JobServiceImpl.STATUS_PATH)) {
+          return CompletableFuture.completedFuture(new EntityHolder<>(jobDefStatus, 1));
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<Object> updateEntity(
+          ZooKeeper zooKeeper,
+          String dest,
+          Object entity,
+          EntityEncoder<Object> encoder,
+          int version) {
+        updated.set(true);
+        return CompletableFuture.completedFuture(jobIns);
+      }
+    };
+    new Expectations() {
+      {
+        jobIns.getRunStatus();
+        result = jobRunStatuses;
+        jobIns.getId();
+        result = jobInsId;
+        jobIns.getJobDefId();
+        result = jobDefId;
+        jobDef.isGlobal();
+        result = true;
+      }
+    };
+    assertThat(cut.completeJobInstanceAsync(jobInsId, nodeId1, state))
+        .isDone()
+        .isCompletedWithValue(jobIns);
+    assertThat(updated).isTrue();
+  }
 }
