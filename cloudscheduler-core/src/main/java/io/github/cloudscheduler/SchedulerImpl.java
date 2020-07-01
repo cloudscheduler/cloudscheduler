@@ -82,12 +82,12 @@ public class SchedulerImpl implements Scheduler {
 
   @Override
   public List<JobDefinition> listJobDefinitions() {
-    return wrapException(() -> jobService.listAllJobDefinitions());
+    return wrapException(jobService::listAllJobDefinitions);
   }
 
   @Override
   public Map<JobDefinition, JobDefinitionStatus> listJobDefinitionsWithStatus() {
-    return wrapException(() -> jobService.listJobDefinitionsWithStatus());
+    return wrapException(jobService::listJobDefinitionsWithStatus);
   }
 
   @Override

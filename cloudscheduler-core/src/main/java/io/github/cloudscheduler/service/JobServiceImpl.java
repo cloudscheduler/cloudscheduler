@@ -190,9 +190,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
             ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), workerNodeRoot, listener)
                 .thenApply(
                     children ->
-                        children.stream()
-                            .map(id -> UUID.fromString(id))
-                            .collect(Collectors.toList())));
+                        children.stream().map(UUID::fromString).collect(Collectors.toList())));
   }
 
   @Override
@@ -362,15 +360,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   @Override
   public CompletableFuture<List<UUID>> listAllJobInstanceIdsAsync() {
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobInstanceRoot)
-                .thenApply(
-                    list -> {
-                      List<UUID> result = new ArrayList<>(list.size());
-                      list.forEach(s -> result.add(UUID.fromString(s)));
-                      return result;
-                    }));
+    return listAllEntityIdsAsync(jobInstanceRoot);
   }
 
   @Override
@@ -401,15 +391,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   @Override
   public CompletableFuture<List<UUID>> listAllJobDefinitionIdsAsync() {
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobDefRoot)
-                .thenApply(
-                    list -> {
-                      List<UUID> result = new ArrayList<>(list.size());
-                      list.forEach(s -> result.add(UUID.fromString(s)));
-                      return result;
-                    }));
+    return listAllEntityIdsAsync(jobDefRoot);
   }
 
   @Override
@@ -1065,5 +1047,17 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
    */
   private <T> CompletableFuture<T> retryOperation(Supplier<CompletableFuture<T>> supplier) {
     return thenCompose(v -> retryStrategy.call(supplier));
+  }
+
+  private CompletableFuture<List<UUID>> listAllEntityIdsAsync(String rootPath) {
+    return retryOperation(
+        () ->
+            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), rootPath)
+                .thenApply(
+                    list -> {
+                      List<UUID> result = new ArrayList<>(list.size());
+                      list.forEach(s -> result.add(UUID.fromString(s)));
+                      return result;
+                    }));
   }
 }

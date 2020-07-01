@@ -193,15 +193,15 @@ public class RetryStrategyTest {
             .retryOn(Collections.singletonList(RuntimeException.class))
             .maxRetry(5)
             .build();
-    assertThat(retryer.shouldRetry(null, new RuntimeException(), 1)).isTrue();
-    assertThat(retryer.shouldRetry(null, new RuntimeException(), 4)).isTrue();
-    assertThat(retryer.shouldRetry(null, new RuntimeException(), 5)).isFalse();
-    assertThat(retryer.shouldRetry(null, new IllegalArgumentException(), 3)).isTrue();
-    assertThat(retryer.shouldRetry(null, new IllegalStateException(), 2)).isTrue();
-    assertThat(retryer.shouldRetry(null, new IllegalStateException(), 7)).isFalse();
-    assertThat(retryer.shouldRetry(null, new Exception(), 2)).isFalse();
-    assertThat(retryer.shouldRetry(null, new IOException(), 1)).isFalse();
-    assertThat(retryer.shouldRetry(null, new IOError(new RuntimeException()), 1)).isFalse();
+    assertThat(retryer.shouldRetry(new RuntimeException(), 1)).isTrue();
+    assertThat(retryer.shouldRetry(new RuntimeException(), 4)).isTrue();
+    assertThat(retryer.shouldRetry(new RuntimeException(), 5)).isFalse();
+    assertThat(retryer.shouldRetry(new IllegalArgumentException(), 3)).isTrue();
+    assertThat(retryer.shouldRetry(new IllegalStateException(), 2)).isTrue();
+    assertThat(retryer.shouldRetry(new IllegalStateException(), 7)).isFalse();
+    assertThat(retryer.shouldRetry(new Exception(), 2)).isFalse();
+    assertThat(retryer.shouldRetry(new IOException(), 1)).isFalse();
+    assertThat(retryer.shouldRetry(new IOError(new RuntimeException()), 1)).isFalse();
     retryer =
         RetryStrategy.newBuilder()
             .fixedDelay(100L)
@@ -212,12 +212,11 @@ public class RetryStrategyTest {
                     KeeperException.SessionExpiredException.class))
             .maxRetry(5)
             .build();
-    assertThat(
-            retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.BADVERSION), 1))
+    assertThat(retryer.shouldRetry(KeeperException.create(KeeperException.Code.BADVERSION), 1))
         .isTrue();
-    assertThat(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.APIERROR), 5))
+    assertThat(retryer.shouldRetry(KeeperException.create(KeeperException.Code.APIERROR), 5))
         .isFalse();
-    assertThat(retryer.shouldRetry(null, KeeperException.create(KeeperException.Code.NOAUTH), 1))
+    assertThat(retryer.shouldRetry(KeeperException.create(KeeperException.Code.NOAUTH), 1))
         .isFalse();
   }
 }
