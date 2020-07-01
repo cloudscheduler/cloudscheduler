@@ -39,6 +39,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -48,6 +49,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.PropertySource;
 
 /** @author Wei Gao */
+@Tag("integration")
 public class SpringJobFactoryTest {
   private TestingServer zkTestServer;
   private ZooKeeper zooKeeper;

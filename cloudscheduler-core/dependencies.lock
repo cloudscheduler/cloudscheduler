@@ -54,6 +54,10 @@
             "locked": "3.16.1",
             "requested": "3.+"
         },
+        "org.jmockit:jmockit": {
+            "locked": "1.49",
+            "requested": "1.+"
+        },
         "org.junit.jupiter:junit-jupiter-api": {
             "locked": "5.7.0-M1",
             "requested": "5.+"
@@ -122,6 +126,10 @@
         "org.assertj:assertj-core": {
             "locked": "3.16.1",
             "requested": "3.+"
+        },
+        "org.jmockit:jmockit": {
+            "locked": "1.49",
+            "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
             "locked": "5.7.0-M1",

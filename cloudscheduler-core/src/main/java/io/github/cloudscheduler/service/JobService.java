@@ -30,6 +30,7 @@ import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -52,11 +53,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default Node registerWorker(Node node) throws Throwable {
-    try {
-      return registerWorkerAsync(node).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> registerWorkerAsync(node));
   }
 
   CompletableFuture<Node> registerWorkerAsync(Node node);
@@ -69,11 +66,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default Node unregisterWorker(Node node) throws Throwable {
-    try {
-      return unregisterWorkerAsync(node).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> unregisterWorkerAsync(node));
   }
 
   CompletableFuture<Node> unregisterWorkerAsync(Node node);
@@ -85,11 +78,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<UUID> getCurrentWorkers() throws Throwable {
-    try {
-      return getCurrentWorkersAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> getCurrentWorkersAsync());
   }
 
   CompletableFuture<List<UUID>> getCurrentWorkersAsync();
@@ -104,11 +93,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinition saveJobDefinition(JobDefinition jobDef) throws Throwable {
-    try {
-      return saveJobDefinitionAsync(jobDef).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> saveJobDefinitionAsync(jobDef));
   }
 
   CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDef);
@@ -121,11 +106,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinition getJobDefinitionById(UUID jobDefId) throws Throwable {
-    try {
-      return getJobDefinitionByIdAsync(jobDefId).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> getJobDefinitionByIdAsync(jobDefId));
   }
 
   CompletableFuture<JobDefinition> getJobDefinitionByIdAsync(UUID jobDefId);
@@ -138,11 +119,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default void deleteJobDefinition(JobDefinition jobDef) throws Throwable {
-    try {
-      deleteJobDefinitionAsync(jobDef).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    wrapFutureExecution(() -> deleteJobDefinitionAsync(jobDef));
   }
 
   CompletableFuture<Void> deleteJobDefinitionAsync(JobDefinition jobDef);
@@ -154,11 +131,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<UUID> listAllJobDefinitionIds() throws Throwable {
-    try {
-      return listAllJobDefinitionIdsAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listAllJobDefinitionIdsAsync());
   }
 
   CompletableFuture<List<UUID>> listAllJobDefinitionIdsAsync();
@@ -170,11 +143,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobDefinition> listAllJobDefinitions() throws Throwable {
-    try {
-      return listAllJobDefinitionsAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listAllJobDefinitionsAsync());
   }
 
   CompletableFuture<List<JobDefinition>> listAllJobDefinitionsAsync();
@@ -189,21 +158,13 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobDefinition> listJobDefinitionsByName(String name) throws Throwable {
-    try {
-      return listJobDefinitionsByNameAsync(name).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listJobDefinitionsByNameAsync(name));
   }
 
   CompletableFuture<List<JobDefinition>> listJobDefinitionsByNameAsync(String name);
 
   default Map<JobDefinition, JobDefinitionStatus> listJobDefinitionsWithStatus() throws Throwable {
-    try {
-      return listJobDefinitionsWithStatusAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listJobDefinitionsWithStatusAsync());
   }
 
   CompletableFuture<Map<JobDefinition, JobDefinitionStatus>> listJobDefinitionsWithStatusAsync();
@@ -216,11 +177,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinitionStatus getJobStatusById(UUID id) throws Throwable {
-    try {
-      return getJobStatusByIdAsync(id).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> getJobStatusByIdAsync(id));
   }
 
   CompletableFuture<JobDefinitionStatus> getJobStatusByIdAsync(UUID id);
@@ -236,11 +193,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobInstance getJobInstanceById(UUID id) throws Throwable {
-    try {
-      return getJobInstanceByIdAsync(id).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> getJobInstanceByIdAsync(id));
   }
 
   CompletableFuture<JobInstance> getJobInstanceByIdAsync(UUID id);
@@ -254,21 +207,13 @@ public interface JobService {
    * @throws Throwable exception
    */
   default void deleteJobInstance(UUID id) throws Throwable {
-    try {
-      deleteJobInstanceAsync(id).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    wrapFutureExecution(() -> deleteJobInstanceAsync(id));
   }
 
   CompletableFuture<Void> deleteJobInstanceAsync(UUID jobInstanceId);
 
   default List<UUID> listAllJobInstanceIds() throws Throwable {
-    try {
-      return listAllJobInstanceIdsAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listAllJobInstanceIdsAsync());
   }
 
   CompletableFuture<List<UUID>> listAllJobInstanceIdsAsync();
@@ -280,11 +225,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobInstance> listAllJobInstances() throws Throwable {
-    try {
-      return listAllJobInstancesAsync().get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> listAllJobInstancesAsync());
   }
 
   CompletableFuture<List<JobInstance>> listAllJobInstancesAsync();
@@ -299,11 +240,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobInstance> getJobInstancesByJobDef(JobDefinition jobDef) throws Throwable {
-    try {
-      return getJobInstancesByJobDefAsync(jobDef).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> getJobInstancesByJobDefAsync(jobDef));
   }
 
   CompletableFuture<List<JobInstance>> getJobInstancesByJobDefAsync(JobDefinition jobDef);
@@ -316,20 +253,12 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobInstance scheduleJobInstance(JobDefinition jobDef) throws Throwable {
-    try {
-      return scheduleJobInstanceAsync(jobDef).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> scheduleJobInstanceAsync(jobDef));
   }
 
   default JobInstance scheduleJobInstance(JobDefinition jobDef, Instant scheduledTime)
       throws Throwable {
-    try {
-      return scheduleJobInstanceAsync(jobDef, scheduledTime).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> scheduleJobInstanceAsync(jobDef, scheduledTime));
   }
 
   CompletableFuture<JobInstance> scheduleJobInstanceAsync(JobDefinition jobDef);
@@ -347,20 +276,13 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobInstance startProcessJobInstance(UUID jobInstanceId, UUID nodeId) throws Throwable {
-    try {
-      return startProcessJobInstanceAsync(jobInstanceId, nodeId).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> startProcessJobInstanceAsync(jobInstanceId, nodeId));
   }
 
   default JobInstance startProcessJobInstance(UUID jobInstanceId, UUID nodeId, Instant startTime)
       throws Throwable {
-    try {
-      return startProcessJobInstanceAsync(jobInstanceId, nodeId, startTime).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(
+        () -> startProcessJobInstanceAsync(jobInstanceId, nodeId, startTime));
   }
 
   CompletableFuture<JobInstance> startProcessJobInstanceAsync(UUID jobInstanceId, UUID nodeId);
@@ -380,20 +302,13 @@ public interface JobService {
    */
   default JobInstance completeJobInstance(UUID jobInstanceId, UUID nodeId, JobInstanceState state)
       throws Throwable {
-    try {
-      return completeJobInstanceAsync(jobInstanceId, nodeId, state).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> completeJobInstanceAsync(jobInstanceId, nodeId, state));
   }
 
   default JobInstance completeJobInstance(
       UUID jobInstanceId, UUID nodeId, Instant endTime, JobInstanceState state) throws Throwable {
-    try {
-      return completeJobInstanceAsync(jobInstanceId, nodeId, endTime, state).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(
+        () -> completeJobInstanceAsync(jobInstanceId, nodeId, endTime, state));
   }
 
   CompletableFuture<JobInstance> completeJobInstanceAsync(
@@ -412,11 +327,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinition pauseJob(UUID id, boolean mayInterrupt) throws Throwable {
-    try {
-      return pauseJobAsync(id, mayInterrupt).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> pauseJobAsync(id, mayInterrupt));
   }
 
   CompletableFuture<JobDefinition> pauseJobAsync(UUID id, boolean mayInterrupt);
@@ -430,11 +341,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinition resumeJob(UUID id) throws Throwable {
-    try {
-      return resumeJobAsync(id).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> resumeJobAsync(id));
   }
 
   CompletableFuture<JobDefinition> resumeJobAsync(UUID id);
@@ -457,14 +364,23 @@ public interface JobService {
    * @throws Throwable exception
    */
   default JobDefinitionStatus completeJobDefinition(JobDefinition jobDef) throws Throwable {
-    try {
-      return completeJobDefinitionAsync(jobDef).get();
-    } catch (ExecutionException e) {
-      throw e.getCause();
-    }
+    return wrapFutureExecution(() -> completeJobDefinitionAsync(jobDef));
   }
 
   CompletableFuture<JobDefinitionStatus> completeJobDefinitionAsync(JobDefinition jobDef);
 
   String getJobInstancePath(UUID id);
+
+  default <T> T wrapFutureExecution(FutureExecution<T> execution) throws Throwable {
+    try {
+      return execution.execute().get();
+    } catch (ExecutionException e) {
+      throw e.getCause();
+    }
+  }
+
+  @FunctionalInterface
+  interface FutureExecution<T> {
+    CompletableFuture<T> execute();
+  }
 }

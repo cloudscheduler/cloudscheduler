@@ -27,13 +27,6 @@ package io.github.cloudscheduler.util;
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.codec.EntityDecoder;
 import io.github.cloudscheduler.codec.EntityEncoder;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -44,6 +37,14 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * A helper class that provide zookeeper related operations, convert zookeeper async operation into
@@ -676,7 +677,7 @@ public class ZooKeeperUtils {
     private final T entity;
     private final int version;
 
-    EntityHolder(T entity, int version) {
+    public EntityHolder(T entity, int version) {
       this.entity = entity;
       this.version = version;
     }

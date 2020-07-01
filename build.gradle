@@ -25,6 +25,7 @@ ext {
     curatorVersion = '5.+'
     log4jVersion = '2.+'
     assertjVersion = '3.+'
+    jmockitVersion = '1.+'
 
     jacocoVersion = '0.8.+'
 }
@@ -65,8 +66,10 @@ subprojects {
 
     dependencies {
         testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: junitVersion
-        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitVersion
         testImplementation group: 'org.assertj', name: 'assertj-core', version: assertjVersion
+        testImplementation group: 'org.jmockit', name: 'jmockit', version: jmockitVersion
+
+        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitVersion
     }
 
     googleJavaFormat {
@@ -163,7 +166,17 @@ subprojects {
     }
 
     test {
-        useJUnitPlatform()
+        doFirst {
+            def jMockit = project.configurations.testCompileClasspath.find {
+                it.name.startsWith("jmockit-")
+            }
+            if (jMockit != null) {
+                jvmArgs "-javaagent:${jMockit}"
+            }
+        }
+        useJUnitPlatform {
+            excludeTags('integration')
+        }
         testLogging {
             events "passed", "skipped", "failed"
         }
@@ -185,6 +198,12 @@ subprojects {
                     'io.github.cloudscheduler.service.JobService',
                     'io.github.cloudscheduler.SchedulerImpl'
             ]
+        }
+    }
+
+    task integrationTest(type: Test) {
+        useJUnitPlatform {
+            includeTags('integration')
         }
     }
 
