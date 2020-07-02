@@ -24,30 +24,22 @@
 
 package io.github.cloudscheduler;
 
-import java.util.Objects;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class ServiceAlreadyStartException extends Exception {
-  private final Node node;
-  private final NodeRole role;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
 
-  public ServiceAlreadyStartException(Node node) {
-    this(node, null);
+public class ServiceAlreadyStartExceptionTest {
+  @Test
+  public void testServiceAlreadyStartException() {
+    Node node = new Node(UUID.randomUUID());
+    assertThat(new ServiceAlreadyStartException(node).getMessage()).startsWith("Service on node");
   }
 
-  public ServiceAlreadyStartException(Node node, NodeRole role) {
-    Objects.requireNonNull(node, "Node is mandatory.");
-    this.node = node;
-    this.role = role;
-  }
-
-  @Override
-  public java.lang.String getMessage() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("Service ");
-    if (role != null) {
-      sb.append(role).append(" ");
-    }
-    sb.append("on node ").append(node).append(" already started");
-    return sb.toString();
+  @Test
+  public void testServiceAlreadyStartExceptionWithRole() {
+    Node node = new Node(UUID.randomUUID());
+    assertThat(new ServiceAlreadyStartException(node, NodeRole.MASTER).getMessage())
+        .startsWith("Service MASTER on node");
   }
 }
