@@ -29,6 +29,8 @@ import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
+import io.github.cloudscheduler.NodeRole;
+import io.github.cloudscheduler.ServiceAlreadyStartException;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.service.JobService;
 import io.github.cloudscheduler.service.JobServiceImpl;
@@ -56,7 +58,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class SchedulerWorker extends CompletableFuture<Void> implements AsyncService {
+public class SchedulerWorker implements AsyncService {
   private static final Logger logger = LoggerFactory.getLogger(SchedulerWorker.class);
   private final ExecutorService customerThreadPool;
   private final AtomicBoolean running;
@@ -130,7 +132,7 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
 
   /** Start scheduler worker. */
   @Override
-  public void start() {
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler worker");
       jobInstanceChanged.set(true);
@@ -147,6 +149,11 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
                 });
       }
       zkConnector.thenAccept(this::initialWorker);
+      return CompletableFuture.completedFuture(null);
+    } else {
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(new ServiceAlreadyStartException(node, NodeRole.WORKER));
+      return future;
     }
   }
 
@@ -166,16 +173,7 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
               observer.workerNodeUp(n.getId(), Instant.now());
               scanJobInstances();
             },
-            threadPool)
-        .whenComplete(
-            (v, cause) -> {
-              if (cause != null) {
-                logger.warn("SchedulerWorker start throw exception", cause);
-                completeExceptionally(cause);
-              } else {
-                complete(null);
-              }
-            });
+            threadPool);
   }
 
   @Override
@@ -212,7 +210,7 @@ public class SchedulerWorker extends CompletableFuture<Void> implements AsyncSer
                       .whenComplete(
                           (v, cause) -> {
                             logger.trace("All JobInstance processor destroyed");
-                            if (zk != null) {
+                            if (zkConnectorOwner && zk != null) {
                               try {
                                 zk.close();
                                 logger.trace("Zookeeper closed: {}", zk);

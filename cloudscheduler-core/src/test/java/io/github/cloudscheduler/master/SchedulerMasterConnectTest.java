@@ -126,11 +126,11 @@ public class SchedulerMasterConnectTest {
         JobDefinitionStatus status = jobService.getJobStatusById(job.getId());
         assertThat(status.getState()).isEqualTo(JobDefinitionState.FINISHED);
       } finally {
+        master.shutdown();
         zooKeeper.close();
       }
     } finally {
       logger.info("Shutting down master.");
-      master.shutdown();
       zkTestServer.close();
     }
   }

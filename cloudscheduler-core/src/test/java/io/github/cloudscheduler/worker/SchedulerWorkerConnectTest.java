@@ -118,10 +118,10 @@ public class SchedulerWorkerConnectTest {
         assertThat(jobIn);
         assertThat(jobIn.getJobState()).isEqualTo(JobInstanceState.COMPLETE);
       } finally {
+        worker.shutdown();
         zooKeeper.close();
       }
     } finally {
-      worker.shutdown();
       zkTestServer.close();
       threadPool.shutdown();
     }

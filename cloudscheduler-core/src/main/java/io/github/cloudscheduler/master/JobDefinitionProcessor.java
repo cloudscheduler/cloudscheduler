@@ -105,13 +105,14 @@ class JobDefinitionProcessor implements AsyncService {
   }
 
   @Override
-  public void start() {
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       logger.info("Start JobDefinition processor for id: {}", jobDef.getId());
       // Schedule next job instance
       // Monitor status
       onStatusChanged();
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

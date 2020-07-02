@@ -84,7 +84,7 @@ class JobInstanceProcessor implements AsyncService {
   }
 
   @Override
-  public void start() {
+  public CompletableFuture<Void> startAsync() {
     logger.trace("Start JobInstance processor for {}", jobInId);
     future =
         jobService
@@ -147,6 +147,7 @@ class JobInstanceProcessor implements AsyncService {
                                         });
                               }
                             }));
+    return CompletableFuture.completedFuture(null);
   }
 
   private CompletableFuture<Void> runJob(JobDefinition jobDef, JobInstance jobIn) {

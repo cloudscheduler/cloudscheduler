@@ -33,7 +33,22 @@ import java.util.concurrent.ExecutionException;
  * @author Wei Gao
  */
 public interface AsyncService {
-  void start();
+  default void start() {
+    try {
+      startAsync().get();
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException) {
+        throw (RuntimeException) cause;
+      } else {
+        throw new RuntimeException(cause);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  CompletableFuture<Void> startAsync();
 
   /** Synchronized shutdown, by default will call async shutdown and wait till done. */
   default void shutdown() {

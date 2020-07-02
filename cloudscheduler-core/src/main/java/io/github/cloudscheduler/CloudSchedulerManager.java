@@ -95,7 +95,7 @@ public class CloudSchedulerManager implements AsyncService {
 
   /** Start this cloud scheduler manager. */
   @Override
-  public void start() {
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       zkConnector =
           ZooKeeperUtils.connectToZooKeeper(
@@ -115,19 +115,21 @@ public class CloudSchedulerManager implements AsyncService {
       List<CompletableFuture<Void>> fs = new ArrayList<>(2);
       if (roles.contains(NodeRole.MASTER)) {
         master = new SchedulerMaster(node, zkConnector, jobFactory, customerThreadPool, observer);
-        master.start();
-        fs.add(master);
+        fs.add(master.startAsync());
       } else {
         master = null;
       }
       if (roles.contains(NodeRole.WORKER)) {
         worker = new SchedulerWorker(node, zkConnector, customerThreadPool, jobFactory, observer);
-        worker.start();
-        fs.add(worker);
+        fs.add(worker.startAsync());
       } else {
         worker = null;
       }
-      CompletableFuture.allOf(fs.toArray(new CompletableFuture[0])).join();
+      return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]));
+    } else {
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(new ServiceAlreadyStartException(node));
+      return future;
     }
   }
 
@@ -160,8 +162,8 @@ public class CloudSchedulerManager implements AsyncService {
         master = null;
       }
       return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-          .thenAccept(
-              ___ -> {
+          .whenComplete(
+              (__, ___) -> {
                 if (zooKeeper != null) {
                   try {
                     zooKeeper.close();

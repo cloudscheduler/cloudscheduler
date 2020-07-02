@@ -29,6 +29,8 @@ import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
+import io.github.cloudscheduler.NodeRole;
+import io.github.cloudscheduler.ServiceAlreadyStartException;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
@@ -64,7 +66,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class SchedulerMaster extends CompletableFuture<Void> implements AsyncService {
+public class SchedulerMaster implements AsyncService {
   private static final Logger logger = LoggerFactory.getLogger(SchedulerMaster.class);
   private static final String LOCK_PATH = "lock";
   private static final String MASTER_LOCK = "master";
@@ -158,7 +160,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
 
   /** Start scheduler master. */
   @Override
-  public void start() {
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler master");
       scanWorkerNodeJob = CompletableFuture.completedFuture(null);
@@ -177,6 +179,11 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                 });
       }
       zkConnector.thenAccept(this::initialMaster);
+      return CompletableFuture.completedFuture(null);
+    } else {
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(new ServiceAlreadyStartException(node, NodeRole.MASTER));
+      return future;
     }
   }
 
@@ -207,16 +214,6 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
               observer.masterNodeUp(node.getId(), Instant.now());
               scanWorkerNodes();
               scanJobDefinitions();
-            })
-        .whenComplete(
-            (v, cause) -> {
-              if (cause != null) {
-                logger.warn("SchedulerMaster start throw exception", cause);
-                completeExceptionally(cause);
-              } else {
-                logger.trace("SchedulerMaster started.");
-                complete(null);
-              }
             });
   }
 
@@ -268,7 +265,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                           })
                       .whenComplete(
                           (v, cause) -> {
-                            if (zk != null) {
+                            if (zkConnectorOwner && zk != null) {
                               logger.debug("Close zookeeper {}", zk);
                               try {
                                 zk.close();
