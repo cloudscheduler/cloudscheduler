@@ -176,7 +176,7 @@ public class CloudSchedulerManagerTest extends AbstractTest {
   }
 
   @Test
-  @Timeout(20)
+  @Timeout(25)
   public void testPauseResumeJob() throws Throwable {
     CountDownLatch masterUpCounter = new CountDownLatch(1);
     CountDownLatch workerUpCounter = new CountDownLatch(1);
