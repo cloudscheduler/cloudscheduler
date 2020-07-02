@@ -171,9 +171,7 @@ public class JobServiceImplTest {
         result = nodeId;
       }
     };
-    assertThat(cut.unregisterWorkerAsync(node))
-        .succeedsWithin(Duration.ofSeconds(5))
-        .isSameAs(node);
+    assertThat(cut.unregisterWorkerAsync(node)).isDone().isCompletedWithValue(node);
     assertThat(called.get()).isFalse();
   }
 
