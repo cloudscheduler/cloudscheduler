@@ -25,259 +25,267 @@
 package io.github.cloudscheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
-import io.github.cloudscheduler.model.JobDefinition;
+import io.github.cloudscheduler.master.SchedulerMaster;
 import io.github.cloudscheduler.util.ZooKeeperUtils;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
+import io.github.cloudscheduler.worker.SchedulerWorker;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import mockit.Expectations;
+import mockit.Mock;
+import mockit.MockUp;
+import mockit.Mocked;
+import mockit.Verifications;
+import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/** @author Wei Gao */
-public class CloudSchedulerManagerTest extends AbstractTest {
-  private static final Logger logger = LoggerFactory.getLogger(CloudSchedulerManagerTest.class);
+public class CloudSchedulerManagerTest {
+  private CloudSchedulerManager cut;
+  private UUID nodeId = UUID.randomUUID();
+  private String zkUrl = "";
+  private int zkTimeout = 200;
+  @Mocked private ExecutorService customerThreadPool;
+  @Mocked private JobFactory jobFactory;
+  @Mocked private CloudSchedulerObserver observer;
+  private NodeRole[] roles = {NodeRole.MASTER, NodeRole.WORKER};
+  @Mocked private SchedulerMaster master;
+  @Mocked private SchedulerWorker worker;
+  @Mocked private ZooKeeper zooKeeper;
 
-  private static final ConcurrentMap<String, CountDownLatch> counters = new ConcurrentHashMap<>();
-  private static final String TEST_NAME = "name";
-
-  @Test
-  @Timeout(3)
-  public void testStartMasterAndWorker() throws Throwable {
-    CountDownLatch masterUpCounter = new CountDownLatch(1);
-    CountDownLatch workerUpCounter = new CountDownLatch(1);
-    CloudSchedulerManager manager =
+  @BeforeEach
+  public void init() {
+    cut =
         CloudSchedulerManager.newBuilder(zkUrl)
-            .setThreadPool(threadPool)
-            .setNodeId(UUID.randomUUID())
-            .setZkTimeout(300)
-            .setObserverSupplier(
-                () ->
-                    new AbstractCloudSchedulerObserver() {
-                      @Override
-                      public void masterNodeUp(UUID nodeId, Instant time) {
-                        masterUpCounter.countDown();
-                      }
-
-                      @Override
-                      public void workerNodeUp(UUID nodeId, Instant time) {
-                        workerUpCounter.countDown();
-                      }
-                    })
+            .setNodeId(nodeId)
+            .setZkTimeout(zkTimeout)
+            .setThreadPool(customerThreadPool)
+            .setJobFactory(jobFactory)
+            .setObserverSupplier(() -> observer)
+            .setRoles(roles)
             .build();
-    manager.start();
-    try {
-      masterUpCounter.await();
-      workerUpCounter.await();
-      List<UUID> workers = jobService.getCurrentWorkers();
-      assertThat(workers).hasSize(1);
-
-      logger.trace("ZooKeeper: {}", zooKeeper);
-      List<String> masters = ZooKeeperUtils.getChildren(zooKeeper, "/lock/master").get();
-      assertThat(masters.size()).isEqualTo(1);
-    } finally {
-      manager.shutdown();
-    }
   }
 
   @Test
-  @Timeout(3)
-  public void testSingleJob() throws Throwable {
-    CountDownLatch masterUpCounter = new CountDownLatch(1);
-    CountDownLatch workerUpCounter = new CountDownLatch(1);
-    String name = "testSingleJob";
-    counters.putIfAbsent(name, new CountDownLatch(1));
-    CountDownLatch counter = counters.get(name);
-    CloudSchedulerManager manager =
-        CloudSchedulerManager.newBuilder(zkUrl)
-            .setThreadPool(threadPool)
-            .setRoles(NodeRole.MASTER, NodeRole.WORKER)
-            .setJobFactory(new SimpleJobFactory())
-            .setObserverSupplier(
-                () ->
-                    new AbstractCloudSchedulerObserver() {
-                      @Override
-                      public void masterNodeUp(UUID nodeId, Instant time) {
-                        masterUpCounter.countDown();
-                      }
-
-                      @Override
-                      public void workerNodeUp(UUID nodeId, Instant time) {
-                        workerUpCounter.countDown();
-                      }
-                    })
-            .build();
-    manager.start();
-    try {
-      Scheduler scheduler = new SchedulerImpl(zooKeeper);
-      masterUpCounter.await();
-      workerUpCounter.await();
-
-      JobDefinition jd =
-          JobDefinition.newBuilder(CloudTestJob.class).jobData(TEST_NAME, name).runNow().build();
-      scheduler.schedule(jd);
-      assertThat(counter.await(1000L, TimeUnit.MILLISECONDS)).as("Job run be run.").isTrue();
-    } finally {
-      manager.shutdown();
-    }
+  public void testCreateInstanceWithDefaultValue() {
+    assertThatCode(() -> CloudSchedulerManager.newBuilder(zkUrl).build())
+        .doesNotThrowAnyException();
   }
 
   @Test
-  public void testSingleRepeatJob() throws Throwable {
-    CountDownLatch masterUpCounter = new CountDownLatch(1);
-    CountDownLatch workerUpCounter = new CountDownLatch(1);
-    String name = "testSingleRepeatJob";
-    counters.putIfAbsent(name, new CountDownLatch(3));
-    CountDownLatch counter = counters.get(name);
-    CloudSchedulerManager manager =
-        CloudSchedulerManager.newBuilder(zkUrl)
-            .setThreadPool(threadPool)
-            .setObserverSupplier(
-                () ->
-                    new AbstractCloudSchedulerObserver() {
-                      @Override
-                      public void masterNodeUp(UUID nodeId, Instant time) {
-                        masterUpCounter.countDown();
-                      }
-
-                      @Override
-                      public void workerNodeUp(UUID nodeId, Instant time) {
-                        workerUpCounter.countDown();
-                      }
-                    })
-            .build();
-    manager.start();
-    try {
-      Scheduler scheduler = new SchedulerImpl(zooKeeper);
-      masterUpCounter.await();
-      workerUpCounter.await();
-
-      JobDefinition jd =
-          JobDefinition.newBuilder(CloudTestJob.class)
-              .jobData(TEST_NAME, name)
-              .fixedRate(Duration.ofSeconds(5))
-              .repeat(3)
-              .build();
-      scheduler.schedule(jd);
-      assertThat(counter.await(15000L, TimeUnit.MILLISECONDS))
-          .as("Job should run 3 times within 15 seconds")
-          .isTrue();
-    } finally {
-      manager.shutdown();
-    }
-  }
-
-  @Test
-  @Timeout(25)
-  public void testPauseResumeJob() throws Throwable {
-    CountDownLatch masterUpCounter = new CountDownLatch(1);
-    CountDownLatch workerUpCounter = new CountDownLatch(1);
-    AtomicReference<CountDownLatch> jobInCompleteCounter =
-        new AtomicReference<>(new CountDownLatch(1));
-    CountDownLatch jobInRemovedCounter = new CountDownLatch(3);
-    CountDownLatch jobCompleteCounter = new CountDownLatch(1);
-
-    String name = "testPauseResumeJob";
-    counters.putIfAbsent(name, new CountDownLatch(3));
-
-    CloudSchedulerManager manager =
-        CloudSchedulerManager.newBuilder(zkUrl)
-            .setThreadPool(threadPool)
-            .setObserverSupplier(
-                () ->
-                    new AbstractCloudSchedulerObserver() {
-                      @Override
-                      public void masterNodeUp(UUID nodeId, Instant time) {
-                        masterUpCounter.countDown();
-                      }
-
-                      @Override
-                      public void workerNodeUp(UUID nodeId, Instant time) {
-                        workerUpCounter.countDown();
-                      }
-
-                      @Override
-                      public void jobInstanceRemoved(UUID jobInId, UUID nodeId, Instant time) {
-                        jobInRemovedCounter.countDown();
-                      }
-
-                      @Override
-                      public void jobInstanceCompleted(
-                          UUID jobDefId, UUID jobInId, UUID nodeId, Instant time) {
-                        logger.info("Job instance completed.");
-                        jobInCompleteCounter.get().countDown();
-                      }
-
-                      @Override
-                      public void jobDefinitionCompleted(UUID jobDefId, Instant time) {
-                        jobCompleteCounter.countDown();
-                      }
-                    })
-            .build();
-    manager.start();
-    try {
-      Scheduler scheduler = new SchedulerImpl(zooKeeper);
-      masterUpCounter.await();
-      workerUpCounter.await();
-
-      JobDefinition jd =
-          JobDefinition.newBuilder(CloudTestJob.class)
-              .jobData(TEST_NAME, name)
-              .startAt(Instant.now().plusSeconds(1L))
-              .fixedRate(Duration.ofSeconds(5))
-              .repeat(3)
-              .build();
-      scheduler.schedule(jd);
-      assertThat(jobInCompleteCounter.get().await(5L, TimeUnit.SECONDS))
-          .as("Job should complete.")
-          .isTrue();
-      jobInCompleteCounter.set(new CountDownLatch(1));
-      scheduler.pause(jd.getId(), true);
-      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
-          .as("Job shouldn't run anymore.")
-          .isFalse();
-      scheduler.resume(jd.getId());
-      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
-          .as("Job should complete again.")
-          .isTrue();
-      jobInCompleteCounter.set(new CountDownLatch(1));
-      assertThat(jobInCompleteCounter.get().await(6L, TimeUnit.SECONDS))
-          .as("Job should complete third time.")
-          .isTrue();
-      jobInCompleteCounter.set(new CountDownLatch(1));
-
-      assertThat(jobInRemovedCounter.await(2L, TimeUnit.SECONDS))
-          .as("Job instance should be removed.")
-          .isTrue();
-      assertThat(jobCompleteCounter.await(2L, TimeUnit.SECONDS))
-          .as("Job definition should completed.")
-          .isTrue();
-    } finally {
-      logger.info("Shutdown for pause/resume test.");
-      manager.shutdown();
-    }
-  }
-
-  public static class CloudTestJob implements Job {
-    private static final Logger logger = LoggerFactory.getLogger(CloudTestJob.class);
-
-    @Override
-    public void execute(JobExecutionContext ctx) {
-      logger.debug("Cloud test job got executed.");
-      String key = (String) ctx.getExecutionData(TEST_NAME);
-      CountDownLatch counter = counters.get(key);
-      if (counter == null) {
-        throw new IllegalStateException();
+  public void testStartAsync() {
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
       }
-      counter.countDown();
-    }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+  }
+
+  @Test
+  public void testStartAsyncTwice() {
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    assertThat(cut.startAsync())
+        .isDone()
+        .isCompletedExceptionally()
+        .hasFailedWithThrowableThat()
+        .isInstanceOf(ServiceAlreadyStartException.class);
+  }
+
+  @Test
+  public void testShutdownAsync() throws InterruptedException {
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        master.shutdownAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.shutdownAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+
+    assertThat(cut.shutdownAsync()).isDone().isCompleted();
+    new Verifications() {
+      {
+        zooKeeper.close();
+      }
+    };
+  }
+
+  @Test
+  public void testShutdownAsyncWithErrors() throws InterruptedException {
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        master.shutdownAsync();
+        CompletableFuture<Void> masterFuture = new CompletableFuture<>();
+        masterFuture.completeExceptionally(new RuntimeException());
+        result = masterFuture;
+        worker.shutdownAsync();
+        CompletableFuture<Void> workerFuture = new CompletableFuture<>();
+        workerFuture.completeExceptionally(new RuntimeException());
+        result = workerFuture;
+        zooKeeper.close();
+        result = new InterruptedException();
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+
+    assertThat(cut.shutdownAsync()).isDone().isCompleted();
+  }
+
+  @Test
+  public void testShutdownAsyncWithoutStart() {
+    assertThat(cut.shutdownAsync()).isDone().isCompleted();
+  }
+
+  @Test
+  public void testStartAsyncMasterOnly() {
+    cut =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setNodeId(nodeId)
+            .setZkTimeout(zkTimeout)
+            .setThreadPool(customerThreadPool)
+            .setJobFactory(jobFactory)
+            .setObserverSupplier(() -> observer)
+            .setRoles(new NodeRole[] {NodeRole.MASTER})
+            .build();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    new Verifications() {
+      {
+        worker.startAsync();
+        times = 0;
+      }
+    };
+  }
+
+  @Test
+  public void testStartAsyncWorkerOnly() {
+    cut =
+        CloudSchedulerManager.newBuilder(zkUrl)
+            .setNodeId(nodeId)
+            .setZkTimeout(zkTimeout)
+            .setThreadPool(customerThreadPool)
+            .setJobFactory(jobFactory)
+            .setObserverSupplier(() -> observer)
+            .setRoles(new NodeRole[] {NodeRole.WORKER})
+            .build();
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    new Verifications() {
+      {
+        master.startAsync();
+        times = 0;
+      }
+    };
+  }
+
+  @Test
+  public void testLostConnection() {
+    AtomicReference<Consumer<EventType>> listener = new AtomicReference<>();
+    AtomicInteger connectTimes = new AtomicInteger(0);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<ZooKeeper> connectToZooKeeper(
+          String zooKeeperUrl, int zkTimeout, Consumer<EventType> disconnectListener) {
+        connectTimes.incrementAndGet();
+        listener.set(disconnectListener);
+        return CompletableFuture.completedFuture(zooKeeper);
+      }
+    };
+    new Expectations() {
+      {
+        master.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        times = 2;
+        worker.startAsync();
+        result = CompletableFuture.completedFuture(null);
+        times = 2;
+        master.shutdownAsync();
+        result = CompletableFuture.completedFuture(null);
+        worker.shutdownAsync();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    assertThat(listener).isNotNull();
+    listener.get().accept(EventType.CONNECTION_LOST);
+    assertThat(connectTimes).hasValue(2);
   }
 }

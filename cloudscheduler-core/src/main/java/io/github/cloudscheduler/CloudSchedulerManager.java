@@ -181,7 +181,7 @@ public class CloudSchedulerManager implements AsyncService {
   private void lostConnection() {
     if (running.get()) {
       logger.warn("CloudSchedulerManager lost connection");
-      shutdownAsync().whenComplete((v, cause) -> start());
+      shutdownAsync().thenCompose(__ -> startAsync());
     }
   }
 
