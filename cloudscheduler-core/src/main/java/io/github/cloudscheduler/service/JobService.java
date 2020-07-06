@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
 /**
@@ -77,7 +77,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<UUID> getCurrentWorkers() throws Throwable {
-    return wrapFutureExecution(() -> getCurrentWorkersAsync());
+    return wrapFutureExecution(this::getCurrentWorkersAsync);
   }
 
   CompletableFuture<List<UUID>> getCurrentWorkersAsync();
@@ -130,7 +130,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<UUID> listAllJobDefinitionIds() throws Throwable {
-    return wrapFutureExecution(() -> listAllJobDefinitionIdsAsync());
+    return wrapFutureExecution(this::listAllJobDefinitionIdsAsync);
   }
 
   CompletableFuture<List<UUID>> listAllJobDefinitionIdsAsync();
@@ -142,7 +142,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobDefinition> listAllJobDefinitions() throws Throwable {
-    return wrapFutureExecution(() -> listAllJobDefinitionsAsync());
+    return wrapFutureExecution(this::listAllJobDefinitionsAsync);
   }
 
   CompletableFuture<List<JobDefinition>> listAllJobDefinitionsAsync();
@@ -163,7 +163,7 @@ public interface JobService {
   CompletableFuture<List<JobDefinition>> listJobDefinitionsByNameAsync(String name);
 
   default Map<JobDefinition, JobDefinitionStatus> listJobDefinitionsWithStatus() throws Throwable {
-    return wrapFutureExecution(() -> listJobDefinitionsWithStatusAsync());
+    return wrapFutureExecution(this::listJobDefinitionsWithStatusAsync);
   }
 
   CompletableFuture<Map<JobDefinition, JobDefinitionStatus>> listJobDefinitionsWithStatusAsync();
@@ -212,7 +212,7 @@ public interface JobService {
   CompletableFuture<Void> deleteJobInstanceAsync(UUID jobInstanceId);
 
   default List<UUID> listAllJobInstanceIds() throws Throwable {
-    return wrapFutureExecution(() -> listAllJobInstanceIdsAsync());
+    return wrapFutureExecution(this::listAllJobInstanceIdsAsync);
   }
 
   CompletableFuture<List<UUID>> listAllJobInstanceIdsAsync();
@@ -224,7 +224,7 @@ public interface JobService {
    * @throws Throwable exception
    */
   default List<JobInstance> listAllJobInstances() throws Throwable {
-    return wrapFutureExecution(() -> listAllJobInstancesAsync());
+    return wrapFutureExecution(this::listAllJobInstancesAsync);
   }
 
   CompletableFuture<List<JobInstance>> listAllJobInstancesAsync();
@@ -372,8 +372,8 @@ public interface JobService {
 
   default <T> T wrapFutureExecution(FutureExecution<T> execution) throws Throwable {
     try {
-      return execution.execute().get();
-    } catch (ExecutionException e) {
+      return execution.execute().join();
+    } catch (CompletionException e) {
       throw e.getCause();
     }
   }

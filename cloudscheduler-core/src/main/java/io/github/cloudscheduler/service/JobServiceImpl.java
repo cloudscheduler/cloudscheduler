@@ -131,9 +131,12 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
     workerNodeRoot = zkRoot + WORKER_NODE_ROOT;
     this.codecProvider = EntityCodecProvider.getCodecProvider();
     CompletableFuture.allOf(
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobDefRoot),
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobInstanceRoot),
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), workerNodeRoot))
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobDefRoot)),
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobInstanceRoot)),
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), workerNodeRoot)))
         .whenComplete(
             (v, cause) -> {
               if (cause != null) {

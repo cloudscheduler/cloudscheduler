@@ -25,7 +25,8 @@
 package io.github.cloudscheduler;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
 
 /**
  * Async service interface, provide async shutdown and default sync shutdown implementation.
@@ -34,36 +35,14 @@ import java.util.concurrent.ExecutionException;
  */
 public interface AsyncService {
   default void start() {
-    try {
-      startAsync().get();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      } else {
-        throw new RuntimeException(cause);
-      }
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
+    wrapFuture(this::startAsync);
   }
 
   CompletableFuture<Void> startAsync();
 
   /** Synchronized shutdown, by default will call async shutdown and wait till done. */
   default void shutdown() {
-    try {
-      shutdownAsync().get();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      } else {
-        throw new RuntimeException(cause);
-      }
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
+    wrapFuture(this::shutdownAsync);
   }
 
   /**
@@ -72,4 +51,17 @@ public interface AsyncService {
    * @return completable future
    */
   CompletableFuture<Void> shutdownAsync();
+
+  default void wrapFuture(Supplier<CompletableFuture<Void>> supplier) {
+    try {
+      supplier.get().join();
+    } catch (CompletionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException) {
+        throw (RuntimeException) cause;
+      } else {
+        throw new RuntimeException(cause);
+      }
+    }
+  }
 }

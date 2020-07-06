@@ -113,8 +113,10 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
                     KeeperException.SessionExpiredException.class,
                     KeeperException.ConnectionLossException.class))
             .build();
-    ZooKeeperUtils.createZnodes(zooKeeper, this.lockBasePath)
-        .thenAccept(path -> this.complete(null));
+    retryStrategy.call(
+        () ->
+            ZooKeeperUtils.createZnodes(zooKeeper, this.lockBasePath)
+                .thenAccept(path -> this.complete(null)));
   }
 
   @Override
