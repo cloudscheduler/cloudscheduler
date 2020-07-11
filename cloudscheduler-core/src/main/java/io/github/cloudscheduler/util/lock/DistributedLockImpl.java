@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class DistributedLockImpl extends CompletableFuture<Void> implements DistributedLock {
+public class DistributedLockImpl implements DistributedLock {
   private static final Logger logger = LoggerFactory.getLogger(DistributedLockImpl.class);
 
   private static final Pattern UUID_SEQUENTIAL_PATTERN =
@@ -65,6 +65,7 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
   private final UUID id;
   private final AtomicBoolean lockAcquired;
   private final RetryStrategy retryStrategy;
+  private final CompletableFuture<Void> _self;
 
   private String lockPath;
   private int sequence;
@@ -99,9 +100,10 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     } else {
       this.lockName = lockName;
     }
-    this.lockAcquired = new AtomicBoolean(false);
+    lockAcquired = new AtomicBoolean(false);
+    _self = new CompletableFuture<>();
     //noinspection
-    this.retryStrategy =
+    retryStrategy =
         RetryStrategy.newBuilder()
             .fibonacci(250L)
             .random()
@@ -116,7 +118,7 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     retryStrategy.call(
         () ->
             ZooKeeperUtils.createZnodes(zooKeeper, this.lockBasePath)
-                .thenAccept(path -> this.complete(null)));
+                .thenAccept(path -> _self.complete(null)));
   }
 
   @Override
@@ -126,7 +128,7 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
       synchronized (this) {
         if (lockingFuture == null) {
           lockingFuture =
-              thenCompose(
+              _self.thenCompose(
                   v ->
                       retryStrategy.call(
                           () ->
@@ -141,7 +143,7 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
   @Override
   public CompletableFuture<Void> unlock() {
     logger.trace("Unlock");
-    return thenCompose(
+    return _self.thenCompose(
         v ->
             retryStrategy.call(
                 () -> {
@@ -216,8 +218,8 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
                       Map<Integer, String> existing = getExistingNode(children);
                       if (existing != null) {
                         Map.Entry<Integer, String> e = existing.entrySet().iterator().next();
-                        this.sequence = e.getKey();
-                        this.lockPath = e.getValue();
+                        sequence = e.getKey();
+                        lockPath = e.getValue();
                         logger.trace(
                             "{}-{}: Found existing znode for this lock, sequence: {}",
                             id,
@@ -245,14 +247,14 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
     SortedMap<Integer, String> kids = getOrderedChildren(children);
     int smallest = -1;
     for (Map.Entry<Integer, String> entry : kids.entrySet()) {
-      if (this.sequence == entry.getKey()) {
+      if (sequence == entry.getKey()) {
         if (smallest < 0) {
           logger.trace("Lock acquired");
           lockAcquired.set(true);
           return CompletableFuture.completedFuture(null);
         } else {
           String nextPath = kids.get(smallest);
-          return thenCompose(
+          return _self.thenCompose(
               n ->
                   retryStrategy.call(
                       () ->
@@ -264,7 +266,7 @@ public class DistributedLockImpl extends CompletableFuture<Void> implements Dist
                                         .thenCompose(cs -> processLock(basePath, cs));
                                   })));
         }
-      } else if (this.sequence > entry.getKey()) {
+      } else if (sequence > entry.getKey()) {
         smallest = entry.getKey();
       } else {
         break;

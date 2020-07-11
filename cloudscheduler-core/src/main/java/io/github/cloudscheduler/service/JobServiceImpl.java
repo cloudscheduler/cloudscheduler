@@ -71,7 +71,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class JobServiceImpl extends CompletableFuture<Void> implements JobService {
+public class JobServiceImpl implements JobService {
   private static final Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
 
   static final String ZK_ROOT_KEY = "cloud.scheduler.zookeeper.chroot";
@@ -88,6 +88,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   private final String jobInstanceRoot;
   private final String workerNodeRoot;
   private final EntityCodecProvider codecProvider;
+  private final CompletableFuture<Void> _self;
 
   /**
    * Constructor.
@@ -129,7 +130,8 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
     jobDefRoot = zkRoot + JOB_DEF_ROOT;
     jobInstanceRoot = zkRoot + JOB_INSTANCE_ROOT;
     workerNodeRoot = zkRoot + WORKER_NODE_ROOT;
-    this.codecProvider = EntityCodecProvider.getCodecProvider();
+    codecProvider = EntityCodecProvider.getCodecProvider();
+    _self = new CompletableFuture<>();
     CompletableFuture.allOf(
             retryStrategy.call(
                 () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobDefRoot)),
@@ -140,9 +142,9 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
         .whenComplete(
             (v, cause) -> {
               if (cause != null) {
-                this.completeExceptionally(cause);
+                _self.completeExceptionally(cause);
               } else {
-                this.complete(null);
+                _self.complete(null);
               }
             });
   }
@@ -989,7 +991,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
    * @return CompletableFuture
    */
   private <T> CompletableFuture<T> retryOperation(Supplier<CompletableFuture<T>> supplier) {
-    return thenCompose(v -> retryStrategy.call(supplier));
+    return _self.thenCompose(v -> retryStrategy.call(supplier));
   }
 
   private CompletableFuture<List<UUID>> listAllEntityIdsAsync(String rootPath) {

@@ -50,7 +50,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class JobServiceImplTest {
-  @Tested(availableDuringSetup = true)
+  @Tested
   private JobServiceImpl cut;
 
   @Injectable private ZooKeeper zooKeeper;
@@ -64,7 +64,12 @@ public class JobServiceImplTest {
         return codecProvider;
       }
     };
-    cut.complete(null);
+    new MockUp<ZooKeeperUtils>() {
+      @Mock
+      public CompletableFuture<String> createZnodes(ZooKeeper zooKeeper, String path) {
+        return CompletableFuture.completedFuture(path);
+      }
+    };
   }
 
   @Test
