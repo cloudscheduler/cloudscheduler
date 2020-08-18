@@ -120,7 +120,7 @@ public class JobServiceImpl implements JobService {
             .build());
   }
 
-  private JobServiceImpl(Supplier<ZooKeeper> zooKeeperSupplier, RetryStrategy retryStrategy) {
+  JobServiceImpl(Supplier<ZooKeeper> zooKeeperSupplier, RetryStrategy retryStrategy) {
     Objects.requireNonNull(zooKeeperSupplier, "ZooKeeper is mandatory");
     Objects.requireNonNull(retryStrategy, "RetryStrategy is mandatory");
     logger.trace("New JobServiceImpl instance with zk: {}", zooKeeperSupplier.get());

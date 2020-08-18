@@ -185,7 +185,6 @@ subprojects {
         jacoco {
             excludes += [
                     'io.github.cloudscheduler.Job',
-                    'io.github.cloudscheduler.NodeRole',
                     'io.github.cloudscheduler.CancelReason',
                     'io.github.cloudscheduler.JobException',
                     'io.github.cloudscheduler.CloudSchedulerObserver',
@@ -196,7 +195,8 @@ subprojects {
                     'io.github.cloudscheduler.AsyncService',
                     'io.github.cloudscheduler.util.CompletableFutureUtils.TimeoutCompletableFuture',
                     'io.github.cloudscheduler.service.JobService',
-                    'io.github.cloudscheduler.SchedulerImpl'
+                    'io.github.cloudscheduler.SchedulerImpl',
+                    'io.github.cloudscheduler.worker.JobExecutionContextImpl'
             ]
         }
     }

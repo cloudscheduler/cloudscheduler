@@ -234,20 +234,10 @@ public class SchedulerMaster implements AsyncService {
           .thenCompose(
               zk ->
                   scanJobDefJob
-                      .exceptionally(
-                          e -> {
-                            logger.warn("Scan JobDefinition exception", e);
-                            return null;
-                          })
                       .whenComplete((v, cause) -> logger.info("Scan JobDefinition complete"))
                       .thenCombine(
-                          scanWorkerNodeJob
-                              .exceptionally(
-                                  e -> {
-                                    logger.warn("Scan worker node exception", e);
-                                    return null;
-                                  })
-                              .whenComplete((v, cause) -> logger.info("Scan worker node complete")),
+                          scanWorkerNodeJob.whenComplete(
+                              (v, cause) -> logger.info("Scan worker node complete")),
                           (a, b) -> null)
                       .thenCompose(v -> destroyAllJobDefinitionProcessor())
                       .exceptionally(

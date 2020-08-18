@@ -9,7 +9,7 @@
         <Root level="ERROR">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="io.github.cloudscheduler" level="INFO" additivity="false">
+        <Logger name="io.github.cloudscheduler" level="ALL" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

@@ -48,14 +48,16 @@ import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** @author Wei Gao */
-public class SchedulerMasterConnectTest {
-  private static final Logger logger = LoggerFactory.getLogger(SchedulerMasterConnectTest.class);
+@Tag("integration")
+public class SchedulerMasterConnectionTest {
+  private static final Logger logger = LoggerFactory.getLogger(SchedulerMasterConnectionTest.class);
   private final JobFactory jobFactory = new SimpleJobFactory();
   private static ExecutorService threadPool;
 

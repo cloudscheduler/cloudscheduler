@@ -146,7 +146,7 @@ public class RetryStrategyTest {
   }
 
   @Test
-  public void estIncrementalNextDelay() {
+  public void testIncrementalNextDelay() {
     RetryStrategy retryer =
         RetryStrategy.newBuilder().incrementDelay(100L, 100L).maxDelay(50000L).build();
     assertThat(retryer.nextRetryDelay(null, null, 1)).isEqualTo(200L);
