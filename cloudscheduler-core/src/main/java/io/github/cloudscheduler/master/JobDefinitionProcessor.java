@@ -153,6 +153,7 @@ class JobDefinitionProcessor implements AsyncService {
                     .thenCompose(
                         time -> {
                           if (time == null) {
+                            logger.trace("Next time is null, complete it.");
                             return CompletableFuture.completedFuture(null);
                           } else {
                             Duration d = Duration.between(Instant.now(), time);
@@ -366,6 +367,7 @@ class JobDefinitionProcessor implements AsyncService {
                       })
                   .thenComposeAsync(
                       nextTime -> {
+                        logger.trace("Next time: {}", nextTime);
                         if (nextTime != null) {
                           return validateNextRuntime(jobDef, nextTime);
                         } else {

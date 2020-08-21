@@ -31,12 +31,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobFactory;
-import io.github.cloudscheduler.model.JobDefinition;
-import io.github.cloudscheduler.model.JobDefinitionState;
-import io.github.cloudscheduler.model.JobDefinitionStatus;
-import io.github.cloudscheduler.model.JobInstance;
+import io.github.cloudscheduler.JobScheduleCalculator;
+import io.github.cloudscheduler.model.*;
 import io.github.cloudscheduler.service.JobService;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -140,6 +139,68 @@ class JobDefinitionProcessorTest {
       }
     };
     assertThat(cut.startAsync()).isDone().isCompleted();
-    assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofMinutes(5));
+    assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofSeconds(2));
+  }
+
+  @Test
+  void testScheduleJobInstanceCron(@Mocked JobDefinitionStatus status) {
+    UUID jobDefId = UUID.randomUUID();
+    new Expectations() {
+      {
+        jobDef.getId();
+        result = jobDefId;
+        jobService.getJobStatusByIdAsync(jobDefId, (Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(status);
+        jobService.getJobStatusByIdAsync(jobDefId);
+        result = CompletableFuture.completedFuture(status);
+        status.getState();
+        result = JobDefinitionState.CREATED;
+        jobService.cleanUpJobInstances(jobDef);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        jobDef.getRepeat();
+        result = null;
+        jobDef.getMode();
+        result = ScheduleMode.CRON;
+        jobDef.getCron();
+        result = "* 5 * * *";
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofSeconds(2));
+  }
+
+  @Test
+  void testScheduleJobInstanceCustomize(
+      @Mocked JobDefinitionStatus status,
+      @Mocked JobInstance jobIns,
+      @Mocked JobScheduleCalculator calculator) throws Throwable {
+    UUID jobDefId = UUID.randomUUID();
+    UUID jobInsId = UUID.randomUUID();
+    new Expectations() {
+      {
+        jobDef.getId();
+        result = jobDefId;
+        jobService.getJobStatusByIdAsync(jobDefId, (Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(status);
+        jobService.getJobStatusByIdAsync(jobDefId);
+        result = CompletableFuture.completedFuture(status);
+        status.getState();
+        result = JobDefinitionState.CREATED;
+        jobService.cleanUpJobInstances(jobDef);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        jobDef.getRepeat();
+        result = null;
+        jobDef.getMode();
+        result = ScheduleMode.CUSTOMIZED;
+        jobDef.getCalculatorClass();
+        result = JobScheduleCalculator.class;
+        jobFactory.createJobScheduleCalculator((Class<? extends JobScheduleCalculator>) any);
+        result = calculator;
+        calculator.calculateNextRunTime(jobDef, status);
+        result = Instant.now().plus(Duration.ofSeconds(5));
+      }
+    };
+    assertThat(cut.startAsync()).isDone().isCompleted();
+    assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofSeconds(2));
   }
 }

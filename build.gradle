@@ -23,7 +23,7 @@ ext {
 
     junitVersion = '5.+'
     curatorVersion = '5.+'
-    log4jVersion = '2.+'
+    log4jVersion = '[2.13.2,)'
     assertjVersion = '3.+'
     jmockitVersion = '1.+'
 
@@ -185,6 +185,7 @@ subprojects {
         jacoco {
             excludes += [
                     'io.github.cloudscheduler.Job',
+                    'io.github.cloudscheduler.NodeRole',
                     'io.github.cloudscheduler.CancelReason',
                     'io.github.cloudscheduler.JobException',
                     'io.github.cloudscheduler.CloudSchedulerObserver',

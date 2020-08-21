@@ -43,12 +43,16 @@
             "project": true
         },
         "org.apache.curator:curator-test": {
-            "locked": "5.0.0",
+            "locked": "5.1.0",
             "requested": "5.+"
         },
         "org.apache.zookeeper:zookeeper": {
             "locked": "3.6.0",
             "requested": "3.4.+"
+        },
+        "org.apache.zookeeper:zookeeper-jute": {
+            "locked": "3.6.1",
+            "requested": "3.6+"
         },
         "org.assertj:assertj-core": {
             "locked": "3.16.1",
@@ -59,7 +63,7 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.slf4j:slf4j-api": {
@@ -72,31 +76,31 @@
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-codec-json"
             ],
-            "locked": "2.11.1"
+            "locked": "2.11.2"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-codec-json"
             ],
-            "locked": "2.11.1"
+            "locked": "2.11.2"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-codec-json"
             ],
-            "locked": "2.11.1"
+            "locked": "2.11.2"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-codec-json"
             ],
-            "locked": "2.11.1"
+            "locked": "2.11.2"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
             "firstLevelTransitive": [
                 "io.github.cloudscheduler:cloudscheduler-codec-json"
             ],
-            "locked": "2.11.1"
+            "locked": "2.11.2"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
             "firstLevelTransitive": [
@@ -108,20 +112,24 @@
             "project": true
         },
         "org.apache.curator:curator-test": {
-            "locked": "5.0.0",
+            "locked": "5.1.0",
             "requested": "5.+"
         },
         "org.apache.logging.log4j:log4j-core": {
             "locked": "2.13.3",
-            "requested": "2.+"
+            "requested": "[2.13.2,)"
         },
         "org.apache.logging.log4j:log4j-slf4j-impl": {
             "locked": "2.13.3",
-            "requested": "2.+"
+            "requested": "[2.13.2,)"
         },
         "org.apache.zookeeper:zookeeper": {
             "locked": "3.6.0",
             "requested": "3.4.+"
+        },
+        "org.apache.zookeeper:zookeeper-jute": {
+            "locked": "3.6.1",
+            "requested": "3.6+"
         },
         "org.assertj:assertj-core": {
             "locked": "3.16.1",
@@ -132,11 +140,11 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.slf4j:slf4j-api": {

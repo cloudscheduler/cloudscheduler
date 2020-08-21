@@ -72,7 +72,7 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         }
     },
@@ -105,11 +105,11 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         }
     }

@@ -1,23 +1,23 @@
 {
     "compileClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
@@ -36,23 +36,23 @@
     },
     "runtimeClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
@@ -61,23 +61,23 @@
     },
     "testCompileClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
@@ -92,29 +92,29 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         }
     },
     "testRuntimeClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.1",
+            "locked": "2.11.2",
             "requested": "2.+"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
@@ -129,11 +129,11 @@
             "requested": "1.+"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         }
     }
