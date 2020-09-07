@@ -24,44 +24,22 @@
 
 package io.github.cloudscheduler;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Supplier;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Async service interface, provide async shutdown and default sync shutdown implementation.
- *
- * @author Wei Gao
- */
-public interface AsyncService {
-  default void start() {
-    wrapFuture(this::startAsync);
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+public class ServiceAlreadyStartExceptionTest {
+  @Test
+  public void testServiceAlreadyStartException() {
+    Node node = new Node(UUID.randomUUID());
+    assertThat(new ServiceAlreadyStartException(node).getMessage()).startsWith("Service on node");
   }
 
-  CompletableFuture<Void> startAsync();
-
-  /** Synchronized shutdown, by default will call async shutdown and wait till done. */
-  default void shutdown() {
-    wrapFuture(this::shutdownAsync);
-  }
-
-  /**
-   * Async shutdown, return a completable future object.
-   *
-   * @return completable future
-   */
-  CompletableFuture<Void> shutdownAsync();
-
-  default void wrapFuture(Supplier<CompletableFuture<Void>> supplier) {
-    try {
-      supplier.get().join();
-    } catch (CompletionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      } else {
-        throw new RuntimeException(cause);
-      }
-    }
+  @Test
+  public void testServiceAlreadyStartExceptionWithRole() {
+    Node node = new Node(UUID.randomUUID());
+    assertThat(new ServiceAlreadyStartException(node, NodeRole.MASTER).getMessage())
+        .startsWith("Service MASTER on node");
   }
 }

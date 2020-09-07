@@ -142,7 +142,7 @@ public class SchedulerWorkerTest extends AbstractTest {
   }
 
   @Test
-  @Timeout(20)
+  @Timeout(25)
   public void testMultipleWorkerNodeGlobalJob() throws Throwable {
     int numberOfWorkers = 50;
     String name = "testMultipleWorkerNodeGlobalJob";

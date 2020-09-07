@@ -29,14 +29,17 @@ import io.github.cloudscheduler.codec.EntityDecoder;
 import io.github.cloudscheduler.codec.EntityEncoder;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.zookeeper.AsyncCallback.MultiCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.OpResult;
 import org.apache.zookeeper.Transaction;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
@@ -86,18 +89,21 @@ public class ZooKeeperUtils {
     Objects.requireNonNull(path, "Path is mandatory");
     logger.trace("Creating path {} on zookeeper: {}", path, zooKeeper);
     String[] ps = path.split("/");
-    CompletableFuture<String> future = CompletableFuture.completedFuture("");
-    try {
-      for (String p : ps) {
-        if (!p.isEmpty()) {
-          logger.trace("Check/Create znode: {}", p);
-          future = future.thenCompose(pa -> putData(zooKeeper, pa + "/" + p));
-        }
-      }
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
-    return future;
+    return ZooKeeperUtils.transactionalOperation(
+        zooKeeper,
+        transaction -> {
+          CompletableFuture<String> future = CompletableFuture.completedFuture("");
+          for (String p : ps) {
+            if (!p.isEmpty()) {
+              logger.trace("Check/Create znode: {}", p);
+              future =
+                  future.thenCompose(
+                      pa -> putData(zooKeeper, transaction, String.join("/", pa, p)));
+            }
+          }
+          future.thenApply(__ -> path);
+          return future;
+        });
   }
 
   /**
@@ -113,7 +119,26 @@ public class ZooKeeperUtils {
    */
   public static CompletableFuture<String> createZnode(
       ZooKeeper zooKeeper, String path, CreateMode mode, byte[] data) {
-    return putData(zooKeeper, path, data, mode, false);
+    CompletableFuture<String> future = new CompletableFuture<>();
+    logger.trace(
+        "Putting {} bytes to {} on zookeeper: {}", data == null ? 0 : data.length, path, zooKeeper);
+    zooKeeper.create(
+        path,
+        data,
+        DEFAULT_ACL,
+        mode,
+        (rc, dest, ctx, name) -> {
+          logger.trace("Create node {} done, return code: {}", name, rc);
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          if (code == Code.OK) {
+            future.complete(name);
+          } else {
+            logger.debug("Result code is not OK, throw exception");
+            future.completeExceptionally(KeeperException.create(code, dest));
+          }
+        },
+        future);
+    return future;
   }
 
   /**
@@ -140,42 +165,34 @@ public class ZooKeeperUtils {
     Objects.requireNonNull(zooKeeper, "ZooKeeper is mandatory");
     Objects.requireNonNull(dest, "Path is mandatory");
     CompletableFuture<List<String>> future = new CompletableFuture<>();
-    try {
-      zooKeeper.getChildren(
-          dest,
-          listener == null
-              ? null
-              : event -> {
-                logger.trace("Got event: {}", event);
-                switch (event.getType()) {
-                  case NodeChildrenChanged:
-                    listener.accept(EventType.CHILD_CHANGED);
-                    break;
-                  case NodeDeleted:
-                    listener.accept(EventType.ENTITY_UPDATED);
-                    break;
-                  default:
-                    break;
-                }
-              },
-          (rc, path, ctx, children, stat) -> {
-            try {
-              logger.trace("Get children on node {} done, return code: {}", path, rc);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              if (code.equals(KeeperException.Code.OK)) {
-                future.complete(children);
-              } else {
-                logger.debug("Result code is not OK, throw exception");
-                future.completeExceptionally(KeeperException.create(code, path));
+    zooKeeper.getChildren(
+        dest,
+        listener == null
+            ? null
+            : event -> {
+              logger.trace("Got event: {}", event);
+              switch (event.getType()) {
+                case NodeChildrenChanged:
+                  listener.accept(EventType.CHILD_CHANGED);
+                  break;
+                case NodeDeleted:
+                  listener.accept(EventType.ENTITY_UPDATED);
+                  break;
+                default:
+                  break;
               }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
+            },
+        (rc, path, ctx, children, stat) -> {
+          logger.trace("Get children on node {} done, return code: {}", path, rc);
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          if (code.equals(KeeperException.Code.OK)) {
+            future.complete(children);
+          } else {
+            logger.debug("Result code is not OK, throw exception");
+            future.completeExceptionally(KeeperException.create(code, path));
+          }
+        },
+        future);
     return future;
   }
 
@@ -191,39 +208,31 @@ public class ZooKeeperUtils {
     Objects.requireNonNull(dest, "Path is mandatory");
     logger.trace("Waiting for {} gone", dest);
     CompletableFuture<Void> future = new CompletableFuture<>();
-    try {
-      zooKeeper.exists(
-          dest,
-          event -> {
-            logger.trace("Got event: {}", event);
-            if (event.getType().equals(Watcher.Event.EventType.NodeDeleted)) {
+    zooKeeper.exists(
+        dest,
+        event -> {
+          logger.trace("Got event: {}", event);
+          if (event.getType().equals(Watcher.Event.EventType.NodeDeleted)) {
+            future.complete(null);
+          }
+        },
+        (rc, path, ctx, stat) -> {
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          switch (code) {
+            case OK:
+              logger.trace("Find node {}.", path);
+              break;
+            case NONODE:
+              logger.trace("Didn't find node {}.", path);
               future.complete(null);
-            }
-          },
-          (rc, path, ctx, stat) -> {
-            try {
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  logger.trace("Find node {}.", path);
-                  break;
-                case NONODE:
-                  logger.trace("Didn't find node {}.", path);
-                  future.complete(null);
-                  break;
-                default:
-                  logger.debug("Do not recognize result code, throw exception");
-                  future.completeExceptionally(KeeperException.create(code, path));
-                  break;
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
+              break;
+            default:
+              logger.debug("Do not recognize result code, throw exception");
+              future.completeExceptionally(KeeperException.create(code, path));
+              break;
+          }
+        },
+        future);
     return future;
   }
 
@@ -239,49 +248,41 @@ public class ZooKeeperUtils {
     Objects.requireNonNull(dest, "Path is mandatory");
     logger.trace("Deleting node at {}", dest);
     CompletableFuture<Void> future = new CompletableFuture<>();
-    try {
-      zooKeeper.exists(
-          dest,
-          false,
-          (rc, path, ctx, stat) -> {
-            try {
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  logger.trace("Find node {}.", dest);
-                  int version = stat.getVersion();
-                  zooKeeper.delete(
-                      path,
-                      version,
-                      (rc1, path1, ctx1) -> {
-                        logger.trace("Delete {} done.", dest);
-                        KeeperException.Code code1 = KeeperException.Code.get(rc1);
-                        if (code1 == Code.OK) {
-                          logger.trace("Node: {} deleted.", path1);
-                          future.complete(null);
-                        } else {
-                          future.completeExceptionally(KeeperException.create(code1, path1));
-                        }
-                      },
-                      null);
-                  break;
-                case NONODE:
-                  logger.trace("Didn't find node {}.", path);
-                  future.complete(null);
-                  break;
-                default:
-                  logger.debug("Do not recognize result code, throw exception");
-                  future.completeExceptionally(KeeperException.create(code, path));
-                  break;
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
+    zooKeeper.exists(
+        dest,
+        false,
+        (rc, path, ctx, stat) -> {
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          switch (code) {
+            case OK:
+              logger.trace("Find node {}.", dest);
+              int version = stat.getVersion();
+              zooKeeper.delete(
+                  path,
+                  version,
+                  (rc1, path1, ctx1) -> {
+                    logger.trace("Delete {} done.", dest);
+                    KeeperException.Code code1 = KeeperException.Code.get(rc1);
+                    if (code1 == Code.OK) {
+                      logger.trace("Node: {} deleted.", path1);
+                      future.complete(null);
+                    } else {
+                      future.completeExceptionally(KeeperException.create(code1, path1));
+                    }
+                  },
+                  ctx);
+              break;
+            case NONODE:
+              logger.trace("Didn't find node {}.", path);
+              future.complete(null);
+              break;
+            default:
+              logger.debug("Do not recognize result code, throw exception");
+              future.completeExceptionally(KeeperException.create(code, path));
+              break;
+          }
+        },
+        future);
     return future;
   }
 
@@ -305,7 +306,7 @@ public class ZooKeeperUtils {
                   children.forEach(
                       child -> {
                         logger.trace("Delete child {} under {}", child, dest);
-                        fs.add(deleteIfExists(zooKeeper, dest + "/" + child, recursive));
+                        fs.add(deleteIfExists(zooKeeper, dest + "/" + child, true));
                       });
                 }
                 if (!fs.isEmpty()) {
@@ -320,92 +321,32 @@ public class ZooKeeperUtils {
     }
   }
 
-  private static CompletableFuture<String> putData(ZooKeeper zooKeeper, String dest) {
-    CompletableFuture<String> future = new CompletableFuture<>();
-    try {
-      logger.trace("Creating empty znode at {} on zookeeper: {}", dest, zooKeeper);
-      zooKeeper.exists(
-          dest,
-          false,
-          (rc, path, ctx, stat) -> {
-            try {
-              logger.trace("Check if {} exists return code: {}", path, rc);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  logger.trace("Found node on {}.", path);
-                  future.complete(path);
-                  break;
-                case NONODE:
-                  logger.trace("Didn't find node {}, create one.", path);
-                  putData(zooKeeper, path, null, CreateMode.PERSISTENT, true)
-                      .whenComplete(
-                          (v, cause) -> {
-                            if (cause != null) {
-                              future.completeExceptionally(cause);
-                            } else {
-                              future.complete(v);
-                            }
-                          });
-                  break;
-                default:
-                  logger.debug("Do not recognize result code, throw exception");
-                  future.completeExceptionally(KeeperException.create(code, path));
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
-    return future;
-  }
-
   private static CompletableFuture<String> putData(
-      ZooKeeper zooKeeper, String dest, byte[] data, CreateMode mode, boolean successIfExist) {
+      ZooKeeper zooKeeper, Transaction transaction, String dest) {
     CompletableFuture<String> future = new CompletableFuture<>();
-    try {
-      logger.trace(
-          "Putting {} bytes to {} on zookeeper: {}",
-          data == null ? 0 : data.length,
-          dest,
-          zooKeeper);
-      zooKeeper.create(
-          dest,
-          data,
-          DEFAULT_ACL,
-          mode,
-          (rc, path, ctx, name) -> {
-            try {
-              logger.trace("Create node {} done, return code: {}", name, rc);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  future.complete(name);
-                  break;
-                case NODEEXISTS:
-                  if (successIfExist) {
-                    future.complete(path);
-                  } else {
-                    logger.debug("Result code is not OK, throw exception");
-                    future.completeExceptionally(KeeperException.create(code, path));
-                  }
-                  break;
-                default:
-                  logger.debug("Result code is not OK, throw exception");
-                  future.completeExceptionally(KeeperException.create(code, path));
-                  break;
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
+    logger.trace("Creating empty znode at {} on zookeeper: {}", dest, zooKeeper);
+    zooKeeper.exists(
+        dest,
+        false,
+        (rc, path, ctx, stat) -> {
+          logger.trace("Check if {} exists return code: {}", path, rc);
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          switch (code) {
+            case OK:
+              logger.trace("Found node on {}.", path);
+              future.complete(path);
+              break;
+            case NONODE:
+              logger.trace("Didn't find node {}, create one.", path);
+              transaction.create(path, null, DEFAULT_ACL, CreateMode.PERSISTENT);
+              future.complete(path);
+              break;
+            default:
+              logger.debug("Do not recognize result code, throw exception");
+              future.completeExceptionally(KeeperException.create(code, path));
+          }
+        },
+        future);
     return future;
   }
 
@@ -456,46 +397,38 @@ public class ZooKeeperUtils {
                   break;
               }
             };
-    try {
-      zooKeeper.getData(
-          dest,
-          watcher,
-          (rc, path, ctx, data, stat) -> {
-            try {
-              logger.trace("Get data on node: {} return code: {}", path, rc);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              switch (code) {
-                case OK:
-                  logger.trace("Decode data and call supplier.");
-                  if (data != null) {
-                    try {
-                      T entity = decoder.decode(data);
-                      future.complete(new EntityHolder<>(entity, stat.getVersion()));
-                    } catch (IOException e) {
-                      logger.debug("IOException when decode entity", e);
-                      future.completeExceptionally(e);
-                    }
-                  } else {
-                    future.complete(null);
-                  }
-                  break;
-                case NONODE:
-                  logger.trace("Didn't find znode on path: {}", dest);
-                  future.complete(null);
-                  break;
-                default:
-                  logger.debug("Result code is not OK, throw exception");
-                  future.completeExceptionally(KeeperException.create(code, path));
-                  break;
+    zooKeeper.getData(
+        dest,
+        watcher,
+        (rc, path, ctx, data, stat) -> {
+          logger.trace("Get data on node: {} return code: {}", path, rc);
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          switch (code) {
+            case OK:
+              logger.trace("Decode data and call supplier.");
+              if (data != null) {
+                try {
+                  T entity = decoder.decode(data);
+                  future.complete(new EntityHolder<>(entity, stat.getVersion()));
+                } catch (IOException e) {
+                  logger.debug("IOException when decode entity", e);
+                  future.completeExceptionally(e);
+                }
+              } else {
+                future.complete(null);
               }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
-            }
-          },
-          null);
-    } catch (Throwable e) {
-      future.completeExceptionally(e);
-    }
+              break;
+            case NONODE:
+              logger.trace("Didn't find znode on path: {}", dest);
+              future.complete(null);
+              break;
+            default:
+              logger.debug("Result code is not OK, throw exception");
+              future.completeExceptionally(KeeperException.create(code, path));
+              break;
+          }
+        },
+        future);
     return future;
   }
 
@@ -513,25 +446,21 @@ public class ZooKeeperUtils {
         dest,
         false,
         (rc, path, ctx, stat) -> {
-          try {
-            logger.trace("Exist return code {} for path {}", rc, path);
-            KeeperException.Code code = KeeperException.Code.get(rc);
-            switch (code) {
-              case OK:
-                future.complete(stat.getVersion());
-                break;
-              case NONODE:
-                future.complete(null);
-                break;
-              default:
-                future.completeExceptionally(KeeperException.create(code, path));
-                break;
-            }
-          } catch (Throwable e) {
-            future.completeExceptionally(e);
+          logger.trace("Exist return code {} for path {}", rc, path);
+          KeeperException.Code code = KeeperException.Code.get(rc);
+          switch (code) {
+            case OK:
+              future.complete(stat.getVersion());
+              break;
+            case NONODE:
+              future.complete(null);
+              break;
+            default:
+              future.completeExceptionally(KeeperException.create(code, path));
+              break;
           }
         },
-        null);
+        future);
     return future;
   }
 
@@ -575,20 +504,17 @@ public class ZooKeeperUtils {
           encoder.encode(entity),
           version,
           (rc, path, ctx, stat) -> {
-            try {
-              logger.trace("Set node data return code {} for path {}", rc, path);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              if (code == Code.OK) {
-                future.complete(entity);
-              } else {
-                future.completeExceptionally(KeeperException.create(code, path));
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
+            logger.trace("Set node data return code {} for path {}", rc, path);
+            KeeperException.Code code = KeeperException.Code.get(rc);
+            if (code == Code.OK) {
+              future.complete(entity);
+            } else {
+              future.completeExceptionally(KeeperException.create(code, path));
             }
           },
-          null);
-    } catch (Throwable e) {
+          future);
+    } catch (IOException e) {
+      logger.debug("IOException when encode entity", e);
       future.completeExceptionally(e);
     }
     return future;
@@ -614,20 +540,17 @@ public class ZooKeeperUtils {
           DEFAULT_ACL,
           CreateMode.PERSISTENT,
           (rc, path, ctx, name) -> {
-            try {
-              logger.trace("Create node data return code {} for path {}", rc, path);
-              KeeperException.Code code = KeeperException.Code.get(rc);
-              if (code == Code.OK) {
-                future.complete(entity);
-              } else {
-                future.completeExceptionally(KeeperException.create(code, path));
-              }
-            } catch (Throwable e) {
-              future.completeExceptionally(e);
+            logger.trace("Create node data return code {} for path {}", rc, path);
+            KeeperException.Code code = KeeperException.Code.get(rc);
+            if (code == Code.OK) {
+              future.complete(entity);
+            } else {
+              future.completeExceptionally(KeeperException.create(code, path));
             }
           },
-          null);
-    } catch (Throwable e) {
+          future);
+    } catch (IOException e) {
+      logger.debug("IOException when encode entity", e);
       future.completeExceptionally(e);
     }
     return future;
@@ -647,7 +570,7 @@ public class ZooKeeperUtils {
   public static <T> CompletableFuture<T> transactionalOperation(
       ZooKeeper zooKeeper, Function<Transaction, CompletableFuture<T>> function) {
     logger.trace("Start transactional operation");
-    Transaction transaction = zooKeeper.transaction();
+    Transaction transaction = new CountableTransaction(zooKeeper.transaction());
     return function
         .apply(transaction)
         .thenCompose(
@@ -655,19 +578,15 @@ public class ZooKeeperUtils {
               CompletableFuture<T> future = new CompletableFuture<>();
               transaction.commit(
                   (rc, path, ctx, opResults) -> {
-                    try {
-                      logger.trace("Transaction return result: {}", rc);
-                      KeeperException.Code code = KeeperException.Code.get(rc);
-                      if (code == Code.OK) {
-                        future.complete(r);
-                      } else {
-                        future.completeExceptionally(KeeperException.create(code, path));
-                      }
-                    } catch (Throwable e) {
-                      future.completeExceptionally(e);
+                    logger.trace("Transaction return result: {}", rc);
+                    KeeperException.Code code = KeeperException.Code.get(rc);
+                    if (code == Code.OK) {
+                      future.complete(r);
+                    } else {
+                      future.completeExceptionally(KeeperException.create(code, path));
                     }
                   },
-                  null);
+                  future);
               return future;
             });
   }
@@ -676,7 +595,7 @@ public class ZooKeeperUtils {
     private final T entity;
     private final int version;
 
-    EntityHolder(T entity, int version) {
+    public EntityHolder(T entity, int version) {
       this.entity = entity;
       this.version = version;
     }
@@ -687,6 +606,58 @@ public class ZooKeeperUtils {
 
     public int getVersion() {
       return version;
+    }
+  }
+
+  static class CountableTransaction extends Transaction {
+    private final Transaction delegator;
+    private boolean hasOps;
+
+    CountableTransaction(Transaction transaction) {
+      super(null);
+      this.delegator = transaction;
+      this.hasOps = false;
+    }
+
+    public Transaction create(
+        final String path, byte data[], List<ACL> acl, CreateMode createMode) {
+      hasOps = true;
+      delegator.create(path, data, acl, createMode);
+      return this;
+    }
+
+    public Transaction delete(final String path, int version) {
+      hasOps = true;
+      delegator.delete(path, version);
+      return this;
+    }
+
+    public Transaction check(String path, int version) {
+      hasOps = true;
+      delegator.check(path, version);
+      return this;
+    }
+
+    public Transaction setData(final String path, byte data[], int version) {
+      hasOps = true;
+      delegator.setData(path, data, version);
+      return this;
+    }
+
+    public List<OpResult> commit() throws InterruptedException, KeeperException {
+      if (hasOps) {
+        return delegator.commit();
+      } else {
+        return Collections.emptyList();
+      }
+    }
+
+    public void commit(MultiCallback cb, Object ctx) {
+      if (hasOps) {
+        delegator.commit(cb, ctx);
+      } else {
+        cb.processResult(Code.OK.intValue(), "", ctx, Collections.emptyList());
+      }
     }
   }
 }

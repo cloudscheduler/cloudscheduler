@@ -80,7 +80,7 @@ public class CronExpression {
     this.hourField = new SimpleField(CronFieldType.HOUR, parts[ix++]);
     this.dayOfMonthField = new DayOfMonthField(parts[ix++]);
     this.monthField = new SimpleField(CronFieldType.MONTH, parts[ix++]);
-    this.dayOfWeekField = new DayOfWeekField(parts[ix++]);
+    this.dayOfWeekField = new DayOfWeekField(parts[ix]);
   }
 
   public static CronExpression create(final String expr) {
@@ -142,10 +142,7 @@ public class CronExpression {
         while (true) { // day of month
           while (true) { // hour
             while (true) { // minute
-              while (true) { // second
-                if (secondField.matches(nextTime.getSecond())) {
-                  break;
-                }
+              while (!secondField.matches(nextTime.getSecond())) { // second
                 nextTime = nextTime.plusSeconds(1).withNano(0);
               }
               if (minuteField.matches(nextTime.getMinute())) {
@@ -323,7 +320,7 @@ public class CronExpression {
     }
 
     protected Integer mapValue(String value) {
-      Integer idx;
+      int idx;
       if (fieldType.names != null
           && (idx = fieldType.names.indexOf(value.toUpperCase(Locale.getDefault()))) >= 0) {
         return idx + 1;
@@ -391,10 +388,10 @@ public class CronExpression {
 
     @Override
     protected void validatePart(FieldPart part) {
-      if (part.modifier != null && Arrays.asList("L", "?").indexOf(part.modifier) == -1) {
+      if (part.modifier != null && !Arrays.asList("L", "?").contains(part.modifier)) {
         throw new IllegalArgumentException(String.format("Invalid modifier [%s]", part.modifier));
       } else if (part.incrementModifier != null
-          && Arrays.asList("/", "#").indexOf(part.incrementModifier) == -1) {
+          && !Arrays.asList("/", "#").contains(part.incrementModifier)) {
         throw new IllegalArgumentException(
             String.format("Invalid increment modifier [%s]", part.incrementModifier));
       }
@@ -435,7 +432,7 @@ public class CronExpression {
 
     @Override
     protected void validatePart(FieldPart part) {
-      if (part.modifier != null && Arrays.asList("L", "W", "?").indexOf(part.modifier) == -1) {
+      if (part.modifier != null && !Arrays.asList("L", "W", "?").contains(part.modifier)) {
         throw new IllegalArgumentException(String.format("Invalid modifier [%s]", part.modifier));
       } else if (part.incrementModifier != null && !"/".equals(part.incrementModifier)) {
         throw new IllegalArgumentException(

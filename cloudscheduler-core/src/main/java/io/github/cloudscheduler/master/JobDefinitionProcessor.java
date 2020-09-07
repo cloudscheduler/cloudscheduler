@@ -104,15 +104,18 @@ class JobDefinitionProcessor implements AsyncService {
         };
   }
 
-  void start() {
+  @Override
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       logger.info("Start JobDefinition processor for id: {}", jobDef.getId());
       // Schedule next job instance
       // Monitor status
       onStatusChanged();
     }
+    return CompletableFuture.completedFuture(null);
   }
 
+  @Override
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutdown JobDefinition processor for id: {}", jobDef.getId());
@@ -150,6 +153,7 @@ class JobDefinitionProcessor implements AsyncService {
                     .thenCompose(
                         time -> {
                           if (time == null) {
+                            logger.trace("Next time is null, complete it.");
                             return CompletableFuture.completedFuture(null);
                           } else {
                             Duration d = Duration.between(Instant.now(), time);
@@ -363,6 +367,7 @@ class JobDefinitionProcessor implements AsyncService {
                       })
                   .thenComposeAsync(
                       nextTime -> {
+                        logger.trace("Next time: {}", nextTime);
                         if (nextTime != null) {
                           return validateNextRuntime(jobDef, nextTime);
                         } else {

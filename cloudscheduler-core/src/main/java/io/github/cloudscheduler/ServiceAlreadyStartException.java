@@ -24,44 +24,30 @@
 
 package io.github.cloudscheduler;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Supplier;
+import java.util.Objects;
 
-/**
- * Async service interface, provide async shutdown and default sync shutdown implementation.
- *
- * @author Wei Gao
- */
-public interface AsyncService {
-  default void start() {
-    wrapFuture(this::startAsync);
+public class ServiceAlreadyStartException extends Exception {
+  private final Node node;
+  private final NodeRole role;
+
+  public ServiceAlreadyStartException(Node node) {
+    this(node, null);
   }
 
-  CompletableFuture<Void> startAsync();
-
-  /** Synchronized shutdown, by default will call async shutdown and wait till done. */
-  default void shutdown() {
-    wrapFuture(this::shutdownAsync);
+  public ServiceAlreadyStartException(Node node, NodeRole role) {
+    Objects.requireNonNull(node, "Node is mandatory.");
+    this.node = node;
+    this.role = role;
   }
 
-  /**
-   * Async shutdown, return a completable future object.
-   *
-   * @return completable future
-   */
-  CompletableFuture<Void> shutdownAsync();
-
-  default void wrapFuture(Supplier<CompletableFuture<Void>> supplier) {
-    try {
-      supplier.get().join();
-    } catch (CompletionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      } else {
-        throw new RuntimeException(cause);
-      }
+  @Override
+  public java.lang.String getMessage() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("Service ");
+    if (role != null) {
+      sb.append(role).append(" ");
     }
+    sb.append("on node ").append(node).append(" already started");
+    return sb.toString();
   }
 }

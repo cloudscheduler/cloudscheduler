@@ -32,11 +32,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Scheduler implementation.
@@ -44,16 +40,10 @@ import org.slf4j.LoggerFactory;
  * @author Wei Gao
  */
 public class SchedulerImpl implements Scheduler {
-  private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
-
   private final JobService jobService;
 
   public SchedulerImpl(ZooKeeper zooKeeper) {
-    jobService = new JobServiceImpl(() -> zooKeeper);
-  }
-
-  public SchedulerImpl(Supplier<ZooKeeper> zooKeeperSupplier) {
-    jobService = new JobServiceImpl(zooKeeperSupplier);
+    jobService = new JobServiceImpl(zooKeeper);
   }
 
   @Override
@@ -72,99 +62,47 @@ public class SchedulerImpl implements Scheduler {
 
   @Override
   public void schedule(JobDefinition job) {
-    try {
-      jobService.saveJobDefinition(job);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+    wrapException(() -> jobService.saveJobDefinition(job));
   }
 
   @Override
   public JobDefinition pause(UUID id, boolean mayInterrupt) {
-    try {
-      return jobService.pauseJob(id, mayInterrupt);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+    return wrapException(() -> jobService.pauseJob(id, mayInterrupt));
   }
 
   @Override
   public JobDefinition resume(UUID id) {
-    try {
-      return jobService.resumeJob(id);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+    return wrapException(() -> jobService.resumeJob(id));
   }
 
   @Override
   public List<JobDefinition> listJobDefinitionsByName(String name) {
-    try {
-      return jobService.listJobDefinitionsByName(name);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+    return wrapException(() -> jobService.listJobDefinitionsByName(name));
   }
 
   @Override
   public List<JobDefinition> listJobDefinitions() {
-    try {
-      return jobService.listAllJobDefinitions();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+    return wrapException(jobService::listAllJobDefinitions);
   }
 
   @Override
   public Map<JobDefinition, JobDefinitionStatus> listJobDefinitionsWithStatus() {
+    return wrapException(jobService::listJobDefinitionsWithStatus);
+  }
+
+  @Override
+  public JobDefinition delete(UUID id) {
+    return wrapException(
+        () ->
+            jobService
+                .getJobDefinitionByIdAsync(id)
+                .thenCompose(job -> jobService.deleteJobDefinitionAsync(job).thenApply(v -> job))
+                .get());
+  }
+
+  <T> T wrapException(Executable<T> callable) {
     try {
-      return jobService.listJobDefinitionsWithStatusAsync().get();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
+      return callable.execute();
     } catch (RuntimeException e) {
       throw e;
     } catch (Throwable e) {
@@ -172,23 +110,8 @@ public class SchedulerImpl implements Scheduler {
     }
   }
 
-  @Override
-  public JobDefinition delete(UUID id) {
-    try {
-      return jobService
-          .getJobDefinitionByIdAsync(id)
-          .thenCompose(job -> jobService.deleteJobDefinitionAsync(job).thenApply(v -> job))
-          .get();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      }
-      throw new JobException(cause);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new JobException(e);
-    }
+  @FunctionalInterface
+  interface Executable<T> {
+    T execute() throws Throwable;
   }
 }

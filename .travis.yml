@@ -1,8 +1,6 @@
 sudo: fales
-
+dist: bionic
 language: java
-jdk:
-  - openjdk11
 
 env:
   global:
@@ -10,6 +8,11 @@ env:
     - secure: gZakSOvDULYSrI2dj6hYoQrz0pV0AScxw4gUPXUUQfxB71qNkDhy5mKUs7Z8pFcqIYl/+RE6dwRyiE2pw4VDXx75VRKlKWU+U/cvwDrffpjCsEGlZgxivWjuNJItC0THXzgjHRrRBL2C5fQKPyKpaFQCF0bn3docz11zYDTjtiUJTElXQg7wyrDxEocBLUIinvHJREOmYfkg22S2DwibjEDvrg0Dn36+aMZTn8o5Pwsx46jNqhDlbtwMaE+6x6OxqZc7saKVE3TUY/9WLLhu9gJQY8zZa7KGtgjdabWQVGfDxazktyJU8gwB2qs1mUThvDeh1vZwL0ImwF9+i7Fh/5HPXIoLQvcw8/FWBy7JNt5XYPGjB/TTfpE6TR6pGWarO/ZRQqhI7/rzlTuGZoPHOIuzNZespEsYMVuzlNNoKoqXq9h1GH3yjIaeUYjQf0RF4uQZUgwKuhXs+/oyLARPD26UyZgISDSzBk1u3fom2/fPsSA4qh9s0TCihft0VNQVE+MweV8npBi17E9o92GkdtlyiU+Dyou3DfPz332dKNmo2S6u/a69JMHxGRXC2Ky7rd/4dkntzhP4HtPHHYnJUdIEzul8R2CwreIj+BbpKuz8G4czZwrsIKtUM89EbRPAQjeOg+dDgwOKHwj4aglC3u3DMBZUpJLgjbTnIU5oi4g=
     - secure: bsEwCi1UKMbvpSDbPgOs0gkJbgmPdbC6MKY98FLBQDA9yLMTbG3CNX6aNAz5fs9No8k+DxYuNWU3yelhtt4vzFk0q1F5iQosZfiTkvkMdhrZzJ5RA/9DX3jw7zT5JmqU41cNXuRT8OhJBxyrKvDO3RzCa37bGoCrqwfzSrKJfzoeaL3Nt3TxXpzL3Q9jXe7YZtf+FGFXbyvmstc+88li1/nvGqU2fZ3FGBH/UjLlciCfZvft5g7E9M5cXSfGVNLxO6PVR3lX2IKsfi8kVjqfqAmharILBnbaQG7Orzj68QjUhhZswCA2eFAB1Qtv/bUMIliPBItknVOfioxfTylEko2bWh5GZxqUNTn2O8R7iNz5kHlsLomyLpOPeWV6AxNKVs7nEpS6ehYwDFtrFgwof9ncJiiexQvAnEr/c7stfC0WN4gA45Edf/+8/Y0RXX8CFylS/Wx0NKbntvY5QSb8T2vZ5DzAgJsM55zavd30CJQLkjX3I0/ayJldTaV/k0Y4Kn+m8+ghdKEsGTSsRRb9VwTceJ2MjfBJbGCWf3PHiJONNri5uh98rTyukbd9vFzjZjUUQ02J9/9VRCtc9MnOpi7TLcWs25ibJaL+FTbZ54SJgLDVkiGbg+ecmLtqrCELEqnoTKp/LG2Zh5Kbyy7KDMJM1DSv9KI6Q2PohDDo4Kg=
     - secure: EfPo57i9525E13XODUVmF6bp9RMQnxcpHA7u4INcHt7rJSc4uzGKRSeuxYgDW0q4LZzK+FE+mHSyks1qIYzK7fPj6SuTednV87WCYieHBhioVQvXpJ/IbXHeVwErRpflxz7G5wHzlPVZqLgsT8e1Ulv6AS+Or2tWwudyis8Sd55gBsRwYqxEqZ1iIs4QGe8s7Wuoif8RT7r6CcgHp9PXNhknF/Avq4/Zf8kM2yqfPUFR/sgsULWR3A5NFi5fb3s7yBHI/iFJNNk/D2u0xYwPSdTaa+m/lpWY4KU1LadB/dlSVZkJgOBssBsrkXMBdLOYpNvfLjJlv9OAxD1+mFJh6hSBLqjDvGS+96Hm9vPp8YvpEamThZicZftQGrWmEnXJZhky+H1X5bXbKGhTRTTV1DMVo6debGNFqBspaZN+RpJWOaDzY2IuzQIv7a/YJIxIoKTYIgyqEoRvid2rm0OmLxKd+hyKtED8KT1QknY4k3AM6HcNW54jJb56nVi2j4eUXjy/9oBDmsHySqBmusZ2dtnQ4pCKcacYctj4s3sI+hpGDws+TW9x6qD/ZCZmScgUlq7lbFrtjR3cw1hAVQ+TktjrKYdjhbIa8IgWoteXMECj0rQ/OjVtXrD3bRzLuQYXlcJ41TtyNJBvIam1L1OXrie1j28maKrns8w4q5pWBM8=
+
+before_install:
+  - wget https://github.com/sormuras/bach/raw/master/install-jdk.sh
+  - source install-jdk.sh --url 'https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz'
+  - java -Xmx32m --version
 
 script:
   - ./gradlew build --scan -s
@@ -26,3 +29,6 @@ cache:
 after_success:
   - ./cd/before-deploy.sh
   - ./cd/deploy.sh
+
+after_failure:
+  - cat /home/travis/build/cloudscheduler/cloudscheduler/cloudscheduler-core/hs_err_pid*.log

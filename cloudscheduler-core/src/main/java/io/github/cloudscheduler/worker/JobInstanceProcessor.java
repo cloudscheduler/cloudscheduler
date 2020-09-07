@@ -61,7 +61,7 @@ class JobInstanceProcessor implements AsyncService {
   private final JobService jobService;
   private final JobFactory jobFactory;
   private final CloudSchedulerObserver observer;
-  private CompletableFuture<?> future;
+  private CompletableFuture<Void> future;
   private DistributedLock lock;
 
   JobInstanceProcessor(
@@ -83,7 +83,8 @@ class JobInstanceProcessor implements AsyncService {
     this.observer = observer;
   }
 
-  void start() {
+  @Override
+  public CompletableFuture<Void> startAsync() {
     logger.trace("Start JobInstance processor for {}", jobInId);
     future =
         jobService
@@ -97,7 +98,7 @@ class JobInstanceProcessor implements AsyncService {
                               logger.trace(
                                   "JobInstance {}, JobDefinition is: {}", jobInId, jobDef.getId());
                               if (jobDef.isGlobal()) {
-                                if (jobIn.getRunStatus().keySet().contains(node.getId())) {
+                                if (jobIn.getRunStatus().containsKey(node.getId())) {
                                   return runJob(jobDef, jobIn);
                                 } else {
                                   return CompletableFuture.completedFuture(null);
@@ -146,6 +147,7 @@ class JobInstanceProcessor implements AsyncService {
                                         });
                               }
                             }));
+    return CompletableFuture.completedFuture(null);
   }
 
   private CompletableFuture<Void> runJob(JobDefinition jobDef, JobInstance jobIn) {
@@ -174,7 +176,7 @@ class JobInstanceProcessor implements AsyncService {
                             logger.trace("Created job execution context, run it.");
                             job.execute(ctx);
                             logger.trace("Return from job implementation.");
-                            return CompletableFuture.completedFuture((Void) null);
+                            return CompletableFuture.completedFuture(null);
                           } catch (Throwable e) {
                             return CompletableFutureUtils.exceptionalCompletableFuture(e);
                           }
@@ -220,8 +222,9 @@ class JobInstanceProcessor implements AsyncService {
             });
   }
 
-  public CompletableFuture<?> shutdownAsync() {
-    CompletableFuture<?> f;
+  @Override
+  public CompletableFuture<Void> shutdownAsync() {
+    CompletableFuture<Void> f;
     if (future != null) {
       future.cancel(true);
       f =

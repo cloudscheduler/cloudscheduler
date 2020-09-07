@@ -99,7 +99,7 @@ public abstract class RetryStrategy {
                             cause = exp.getCause();
                           }
                         }
-                        if (shouldRetry(v, cause, retries)) {
+                        if (shouldRetry(cause, retries)) {
                           logger.trace("Will retry");
                           long interval = nextRetryDelay(v, cause, retries);
                           if (interval <= 0L) {
@@ -140,7 +140,7 @@ public abstract class RetryStrategy {
 
   protected abstract <T> long nextRetryInterval(T v, Throwable exp, int retries);
 
-  protected <T> boolean shouldRetry(T v, Throwable exp, int retries) {
+  protected boolean shouldRetry(Throwable exp, int retries) {
     if (!retryOn.isEmpty() && (maxRetryTimes <= 0 || retries < maxRetryTimes)) {
       boolean retry = false;
       for (Class<? extends Throwable> clazz : retryOn) {

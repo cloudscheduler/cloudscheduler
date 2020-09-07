@@ -8,6 +8,7 @@ dependencies {
     implementation group: 'org.apache.zookeeper', name: 'zookeeper', version: zookeeperVersion
     testImplementation project(':cloudscheduler-codec-json')
     testImplementation group: 'org.apache.curator', name: 'curator-test', version: curatorVersion
+    testImplementation group: 'org.apache.zookeeper', name: 'zookeeper-jute', version: '3.6+'
     testRuntimeOnly group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: log4jVersion
     testRuntimeOnly group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
 }

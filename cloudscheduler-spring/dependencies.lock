@@ -4,11 +4,11 @@
             "project": true
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         }
     },
@@ -45,11 +45,11 @@
             "locked": "1.7.30"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         }
     },
@@ -61,7 +61,7 @@
             "project": true
         },
         "org.apache.curator:curator-test": {
-            "locked": "5.0.0",
+            "locked": "5.1.0",
             "requested": "5.+"
         },
         "org.apache.zookeeper:zookeeper": {
@@ -69,23 +69,27 @@
             "requested": "3.4.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.1",
+            "locked": "3.17.2",
             "requested": "3.+"
         },
+        "org.jmockit:jmockit": {
+            "locked": "1.49",
+            "requested": "1.+"
+        },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-core": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         }
     },
@@ -128,16 +132,16 @@
             "locked": "1.7.2"
         },
         "org.apache.curator:curator-test": {
-            "locked": "5.0.0",
+            "locked": "5.1.0",
             "requested": "5.+"
         },
         "org.apache.logging.log4j:log4j-core": {
             "locked": "2.13.3",
-            "requested": "2.+"
+            "requested": "[2.13.2,)"
         },
         "org.apache.logging.log4j:log4j-slf4j-impl": {
             "locked": "2.13.3",
-            "requested": "2.+"
+            "requested": "[2.13.2,)"
         },
         "org.apache.zookeeper:zookeeper": {
             "firstLevelTransitive": [
@@ -147,15 +151,19 @@
             "requested": "3.4.+"
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.1",
+            "locked": "3.17.2",
             "requested": "3.+"
         },
+        "org.jmockit:jmockit": {
+            "locked": "1.49",
+            "requested": "1.+"
+        },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-M1",
+            "locked": "5.7.0-RC1",
             "requested": "5.+"
         },
         "org.slf4j:slf4j-api": {
@@ -165,15 +173,15 @@
             "locked": "1.7.30"
         },
         "org.springframework:spring-beans": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-context": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         },
         "org.springframework:spring-core": {
-            "locked": "5.2.7.RELEASE",
+            "locked": "5.2.8.RELEASE",
             "requested": "5.+"
         }
     }

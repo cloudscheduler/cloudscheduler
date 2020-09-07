@@ -29,6 +29,8 @@ import io.github.cloudscheduler.CloudSchedulerObserver;
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobFactory;
 import io.github.cloudscheduler.Node;
+import io.github.cloudscheduler.NodeRole;
+import io.github.cloudscheduler.ServiceAlreadyStartException;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobInstance;
 import io.github.cloudscheduler.model.JobInstanceState;
@@ -64,7 +66,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class SchedulerMaster extends CompletableFuture<Void> implements AsyncService {
+public class SchedulerMaster implements AsyncService {
   private static final Logger logger = LoggerFactory.getLogger(SchedulerMaster.class);
   private static final String LOCK_PATH = "lock";
   private static final String MASTER_LOCK = "master";
@@ -85,9 +87,10 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   private ScheduledExecutorService scheduledThreadPool;
   private JobService jobService;
   private DistributedLock masterLock;
-  private CompletableFuture<?> scanJobDefJob;
-  private CompletableFuture<?> scanWorkerNodeJob;
+  private CompletableFuture<Void> scanJobDefJob;
+  private CompletableFuture<Void> scanWorkerNodeJob;
   private CompletableFuture<ZooKeeper> zkConnector;
+  private final boolean zkConnectorOwner;
 
   /**
    * Constructor.
@@ -124,27 +127,63 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
     scanningWorkerNodes = new AtomicBoolean(false);
     processors = new ConcurrentHashMap<>();
     workerNodes = new HashSet<>();
+    this.zkConnectorOwner = true;
+  }
+
+  public SchedulerMaster(
+      Node node,
+      CompletableFuture<ZooKeeper> zkConnector,
+      JobFactory jobFactory,
+      ExecutorService customerThreadPool,
+      CloudSchedulerObserver observer) {
+    Objects.requireNonNull(node, "Node is mandatory");
+    Objects.requireNonNull(zkConnector, "ZooKeeper connector is mandatory");
+    Objects.requireNonNull(jobFactory, "JobFactory is mandatory");
+    Objects.requireNonNull(customerThreadPool, "Customer provided thread pool is mandatory");
+    Objects.requireNonNull(observer, "Observer is mandatory");
+    this.node = node;
+    this.zkUrl = null;
+    this.zkTimeout = -1;
+    this.jobFactory = jobFactory;
+    this.customerThreadPool = customerThreadPool;
+    this.observer = observer;
+    running = new AtomicBoolean(false);
+    jobDefinitionChanged = new AtomicBoolean(true);
+    scanningJobDefinitions = new AtomicBoolean(false);
+    workerNodeChanged = new AtomicBoolean(true);
+    scanningWorkerNodes = new AtomicBoolean(false);
+    processors = new ConcurrentHashMap<>();
+    workerNodes = new HashSet<>();
+    this.zkConnector = zkConnector;
+    this.zkConnectorOwner = false;
   }
 
   /** Start scheduler master. */
-  public void start() {
+  @Override
+  public CompletableFuture<Void> startAsync() {
     if (running.compareAndSet(false, true)) {
       logger.info("Starting scheduler master");
-      zkConnector = new CompletableFuture<>();
       scanWorkerNodeJob = CompletableFuture.completedFuture(null);
       scanJobDefJob = CompletableFuture.completedFuture(null);
       workerNodeChanged.set(true);
       jobDefinitionChanged.set(true);
-      zkConnector =
-          ZooKeeperUtils.connectToZooKeeper(
-              zkUrl,
-              zkTimeout,
-              eventType -> {
-                if (eventType == EventType.CONNECTION_LOST) {
-                  lostConnection();
-                }
-              });
+      if (zkConnectorOwner) {
+        zkConnector =
+            ZooKeeperUtils.connectToZooKeeper(
+                zkUrl,
+                zkTimeout,
+                eventType -> {
+                  if (eventType == EventType.CONNECTION_LOST) {
+                    lostConnection();
+                  }
+                });
+      }
       zkConnector.thenAccept(this::initialMaster);
+      return CompletableFuture.completedFuture(null);
+    } else {
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(new ServiceAlreadyStartException(node, NodeRole.MASTER));
+      return future;
     }
   }
 
@@ -175,16 +214,6 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
               observer.masterNodeUp(node.getId(), Instant.now());
               scanWorkerNodes();
               scanJobDefinitions();
-            })
-        .whenComplete(
-            (v, cause) -> {
-              if (cause != null) {
-                logger.warn("SchedulerMaster start throw exception", cause);
-                completeExceptionally(cause);
-              } else {
-                logger.trace("SchedulerMaster started.");
-                complete(null);
-              }
             });
   }
 
@@ -192,8 +221,10 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
   public CompletableFuture<Void> shutdownAsync() {
     if (running.compareAndSet(true, false)) {
       logger.info("Shutting down scheduler master");
-      zkConnector.cancel(false);
       CompletableFuture<ZooKeeper> t = zkConnector;
+      if (zkConnectorOwner) {
+        zkConnector.cancel(false);
+      }
       zkConnector = new CompletableFuture<>();
       return t.exceptionally(
               e -> {
@@ -203,20 +234,10 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
           .thenCompose(
               zk ->
                   scanJobDefJob
-                      .exceptionally(
-                          e -> {
-                            logger.warn("Scan JobDefinition exception", e);
-                            return null;
-                          })
                       .whenComplete((v, cause) -> logger.info("Scan JobDefinition complete"))
                       .thenCombine(
-                          scanWorkerNodeJob
-                              .exceptionally(
-                                  e -> {
-                                    logger.warn("Scan worker node exception", e);
-                                    return null;
-                                  })
-                              .whenComplete((v, cause) -> logger.info("Scan worker node complete")),
+                          scanWorkerNodeJob.whenComplete(
+                              (v, cause) -> logger.info("Scan worker node complete")),
                           (a, b) -> null)
                       .thenCompose(v -> destroyAllJobDefinitionProcessor())
                       .exceptionally(
@@ -234,7 +255,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                           })
                       .whenComplete(
                           (v, cause) -> {
-                            if (zk != null) {
+                            if (zkConnectorOwner && zk != null) {
                               logger.debug("Close zookeeper {}", zk);
                               try {
                                 zk.close();
@@ -279,7 +300,7 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
       logger.trace("In scan worker node loop.");
       scanWorkerNodeJob =
           scanWorkerNodeJob.thenCompose(
-              v ->
+              __ ->
                   jobService
                       .getCurrentWorkersAsync(
                           eventType -> {
@@ -296,8 +317,8 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                           nodes -> {
                             logger.trace("Scan worker nodes get {} records", nodes.size());
                             return processWorkerNodes(nodes)
-                                .thenApply(
-                                    n -> {
+                                .thenAccept(
+                                    ___ -> {
                                       Set<UUID> previousNodes = new HashSet<>(workerNodes);
                                       previousNodes.removeAll(nodes);
                                       workerNodes.addAll(nodes);
@@ -309,7 +330,6 @@ public class SchedulerMaster extends CompletableFuture<Void> implements AsyncSer
                                         previousNodes.forEach(
                                             id -> observer.workerNodeRemoved(id, now));
                                       }
-                                      return previousNodes.size();
                                     });
                           },
                           threadPool)

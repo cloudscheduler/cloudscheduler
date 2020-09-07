@@ -24,26 +24,39 @@
 
 package io.github.cloudscheduler;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.*;
 
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
 import io.github.cloudscheduler.model.ScheduleMode;
+import io.github.cloudscheduler.service.JobServiceImpl;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import mockit.*;
+import org.apache.zookeeper.ZooKeeper;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class SchedulerImplTest extends AbstractTest {
+public class SchedulerImplTest {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerImplTest.class);
+
+  @Injectable private ZooKeeper zooKeeper;
+  @Tested private SchedulerImpl cut;
+
   @Test
-  public void testScheduleRunOnce() {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
-
-    JobDefinition jobDef = scheduler.runNow(TestJob.class);
+  public void testScheduleRunNow() {
+    new MockUp<JobServiceImpl>() {
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+    };
+    JobDefinition jobDef = cut.runNow(TestJob.class);
     assertThat(jobDef).isNotNull();
     assertThat(jobDef.getMode()).isEqualTo(ScheduleMode.START_NOW);
     assertThat(jobDef.isGlobal()).isFalse();
@@ -56,11 +69,15 @@ public class SchedulerImplTest extends AbstractTest {
   }
 
   @Test
-  public void testScheduleRunNow() {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
-
+  public void testScheduleRunOnce() {
+    new MockUp<JobServiceImpl>() {
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+    };
     Instant time = Instant.now().plusSeconds(10);
-    JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
+    JobDefinition jobDef = cut.runOnce(TestJob.class, time);
     assertThat(jobDef).isNotNull();
     assertThat(jobDef.getMode()).isEqualTo(ScheduleMode.START_AT);
     assertThat(jobDef.isGlobal()).isFalse();
@@ -74,8 +91,6 @@ public class SchedulerImplTest extends AbstractTest {
 
   @Test
   public void testScheduleJob() {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
-
     Instant stime = Instant.now().plusSeconds(10);
     Instant etime = stime.plus(1, ChronoUnit.DAYS);
     JobDefinition jobDef =
@@ -85,11 +100,22 @@ public class SchedulerImplTest extends AbstractTest {
             .fixedDelay(Duration.ofMinutes(60))
             .repeat(10)
             .build();
-    scheduler.schedule(jobDef);
+    new MockUp<JobServiceImpl>() {
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+
+      @Mock
+      public CompletableFuture<List<JobDefinition>> listJobDefinitionsByNameAsync(String name) {
+        return CompletableFuture.completedFuture(Arrays.asList(jobDef));
+      }
+    };
+    cut.schedule(jobDef);
 
     String name = jobDef.getName();
 
-    List<JobDefinition> jobs = scheduler.listJobDefinitionsByName(name);
+    List<JobDefinition> jobs = cut.listJobDefinitionsByName(name);
     assertThat(jobs).hasSize(1);
     JobDefinition job = jobs.iterator().next();
     assertThat(job.getMode()).isEqualTo(ScheduleMode.START_AT);
@@ -104,6 +130,17 @@ public class SchedulerImplTest extends AbstractTest {
   }
 
   @Test
+  public void testListJobDefinitions(@Mocked JobDefinition job1, @Mocked JobDefinition job2) {
+    new MockUp<JobServiceImpl>() {
+      @Mock
+      public CompletableFuture<List<JobDefinition>> listAllJobDefinitionsAsync() {
+        return CompletableFuture.completedFuture(Arrays.asList(job1, job2));
+      }
+    };
+    assertThat(cut.listJobDefinitions()).containsOnly(job1, job2);
+  }
+
+  @Test
   public void testUnscheduleJobNotInterrupt() {
     testPauseJob(false);
   }
@@ -115,54 +152,210 @@ public class SchedulerImplTest extends AbstractTest {
 
   @Test
   public void testPauseJobTwice() {
-    assertThatExceptionOfType(JobException.class)
-        .isThrownBy(
-            () -> {
-              Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
+    new MockUp<JobServiceImpl>() {
+      private JobDefinition jobDefinition;
+      private boolean paused;
 
-              Instant time = Instant.now().plusSeconds(10);
-              JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
-              assertThat(jobDef).isNotNull();
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        this.jobDefinition = jobDefinition;
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
 
-              scheduler.pause(jobDef.getId(), false);
-              scheduler.pause(jobDef.getId(), true);
-            });
+      @Mock
+      public CompletableFuture<JobDefinition> pauseJobAsync(UUID id, boolean mayInterrupt) {
+        if (id.equals(jobDefinition.getId())) {
+          if (paused) {
+            CompletableFuture<JobDefinition> future = new CompletableFuture<>();
+            future.completeExceptionally(
+                new JobException("JobDefinition already completed or paused"));
+            return future;
+          } else {
+            paused = true;
+            return CompletableFuture.completedFuture(jobDefinition);
+          }
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    Instant time = Instant.now().plusSeconds(10);
+    JobDefinition jobDef = cut.runOnce(TestJob.class, time);
+    assertThat(jobDef).isNotNull();
+    assertThatCode(() -> cut.pause(jobDef.getId(), false)).doesNotThrowAnyException();
+    assertThatExceptionOfType(JobException.class).isThrownBy(() -> cut.pause(jobDef.getId(), true));
+  }
+
+  @Test
+  public void testResumeJob() {
+    new MockUp<JobServiceImpl>() {
+      private JobDefinition jobDefinition;
+      private boolean paused;
+
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        this.jobDefinition = jobDefinition;
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+
+      @Mock
+      public CompletableFuture<JobDefinition> pauseJobAsync(UUID id, boolean mayInterrupt) {
+        if (id.equals(jobDefinition.getId())) {
+          paused = true;
+          return CompletableFuture.completedFuture(jobDefinition);
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<Map<JobDefinition, JobDefinitionStatus>>
+          listJobDefinitionsWithStatusAsync() {
+        Map<JobDefinition, JobDefinitionStatus> map = new HashMap<>();
+        JobDefinitionStatus status = new JobDefinitionStatus(jobDefinition.getId());
+        status.setState(paused ? JobDefinitionState.PAUSED : JobDefinitionState.CREATED);
+        map.put(jobDefinition, status);
+        return CompletableFuture.completedFuture(map);
+      }
+
+      @Mock
+      public CompletableFuture<JobDefinition> resumeJobAsync(UUID id) {
+        if (id.equals(jobDefinition.getId())) {
+          paused = false;
+          return CompletableFuture.completedFuture(jobDefinition);
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    };
+    Instant time = Instant.now().plusSeconds(10);
+    JobDefinition jobDef = cut.runOnce(TestJob.class, time);
+    assertThat(jobDef).isNotNull();
+    assertThatCode(() -> cut.pause(jobDef.getId(), false)).doesNotThrowAnyException();
+    Map<JobDefinition, JobDefinitionStatus> status = cut.listJobDefinitionsWithStatus();
+    assertThat(status.get(jobDef))
+        .isNotNull()
+        .hasFieldOrPropertyWithValue("state", JobDefinitionState.PAUSED);
+    assertThatCode(() -> cut.resume(jobDef.getId())).doesNotThrowAnyException();
+    status = cut.listJobDefinitionsWithStatus();
+    assertThat(status.get(jobDef))
+        .isNotNull()
+        .hasFieldOrPropertyWithValue("state", JobDefinitionState.CREATED);
   }
 
   @Test
   public void testDeleteJob() {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
+    new MockUp<JobServiceImpl>() {
+      private JobDefinition jobDefinition;
 
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        this.jobDefinition = jobDefinition;
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+
+      @Mock
+      public CompletableFuture<JobDefinition> getJobDefinitionByIdAsync(UUID jobDefId) {
+        if (jobDefId.equals(jobDefinition.getId())) {
+          return CompletableFuture.completedFuture(jobDefinition);
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<Void> deleteJobDefinitionAsync(JobDefinition jobDef) {
+        if (jobDef.equals(jobDefinition)) {
+          jobDefinition = null;
+          return CompletableFuture.completedFuture(null);
+        } else {
+          CompletableFuture<Void> future = new CompletableFuture<>();
+          future.completeExceptionally(new RuntimeException());
+          return future;
+        }
+      }
+
+      @Mock
+      public CompletableFuture<List<JobDefinition>> listJobDefinitionsByNameAsync(String name) {
+        return CompletableFuture.completedFuture(
+            jobDefinition == null ? Collections.emptyList() : Arrays.asList(jobDefinition));
+      }
+    };
     Instant time = Instant.now().plusSeconds(10);
-    JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
+    JobDefinition jobDef = cut.runOnce(TestJob.class, time);
     assertThat(jobDef).isNotNull();
 
-    scheduler.delete(jobDef.getId());
+    cut.delete(jobDef.getId());
 
-    List<JobDefinition> jobs = scheduler.listJobDefinitionsByName(jobDef.getName());
+    List<JobDefinition> jobs = cut.listJobDefinitionsByName(jobDef.getName());
     assertThat(jobs).isEmpty();
   }
 
-  private void testPauseJob(boolean interrupt) {
-    Scheduler scheduler = new SchedulerImpl(() -> zooKeeper);
+  @Test
+  public void testWrapExecutionWithRuntimeException() {
+    assertThatExceptionOfType(RuntimeException.class)
+        .isThrownBy(
+            () ->
+                cut.wrapException(
+                    () -> {
+                      throw new RuntimeException();
+                    }));
+  }
 
+  @Test
+  public void testWrapExecutionWithException() {
+    assertThatExceptionOfType(JobException.class)
+        .isThrownBy(
+            () ->
+                cut.wrapException(
+                    () -> {
+                      throw new Exception("RootCause");
+                    }))
+        .havingCause()
+        .withMessage("RootCause");
+  }
+
+  private void testPauseJob(boolean interrupt) {
+    new MockUp<JobServiceImpl>() {
+      private JobDefinition jobDefinition;
+      private boolean paused;
+
+      @Mock
+      public CompletableFuture<JobDefinition> saveJobDefinitionAsync(JobDefinition jobDefinition) {
+        this.jobDefinition = jobDefinition;
+        return CompletableFuture.completedFuture(jobDefinition);
+      }
+
+      @Mock
+      public CompletableFuture<JobDefinition> pauseJobAsync(UUID id, boolean mayInterrupt) {
+        if (id.equals(jobDefinition.getId())) {
+          paused = true;
+          return CompletableFuture.completedFuture(jobDefinition);
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+
+      @Mock
+      public CompletableFuture<Map<JobDefinition, JobDefinitionStatus>>
+          listJobDefinitionsWithStatusAsync() {
+        Map<JobDefinition, JobDefinitionStatus> map = new HashMap<>();
+        JobDefinitionStatus status = new JobDefinitionStatus(jobDefinition.getId());
+        status.setState(paused ? JobDefinitionState.PAUSED : JobDefinitionState.CREATED);
+        map.put(jobDefinition, status);
+        return CompletableFuture.completedFuture(map);
+      }
+    };
     Instant time = Instant.now().plusSeconds(10);
-    JobDefinition jobDef = scheduler.runOnce(TestJob.class, time);
+    JobDefinition jobDef = cut.runOnce(TestJob.class, time);
     assertThat(jobDef).isNotNull();
 
-    JobDefinition job = scheduler.pause(jobDef.getId(), interrupt);
+    JobDefinition job = cut.pause(jobDef.getId(), interrupt);
 
     assertThat(job).isNotNull();
-    Map<JobDefinition, JobDefinitionStatus> jobstats = scheduler.listJobDefinitionsWithStatus();
-    JobDefinitionStatus status = null;
-    for (Map.Entry<JobDefinition, JobDefinitionStatus> entry : jobstats.entrySet()) {
-      JobDefinition j = entry.getKey();
-      if (j.getId().equals(job.getId())) {
-        status = entry.getValue();
-        break;
-      }
-    }
-    assertThat(status).isNotNull();
-    assertThat(status.getState()).isEqualTo(JobDefinitionState.PAUSED);
+    Map<JobDefinition, JobDefinitionStatus> jobstats = cut.listJobDefinitionsWithStatus();
+    assertThat(jobstats.get(job))
+        .isNotNull()
+        .hasFieldOrPropertyWithValue("state", JobDefinitionState.PAUSED);
   }
 }

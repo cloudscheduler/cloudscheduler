@@ -24,10 +24,13 @@
 
 package io.github.cloudscheduler.service;
 
+import static java.util.stream.Collectors.collectingAndThen;
+
 import io.github.cloudscheduler.EventType;
 import io.github.cloudscheduler.JobException;
 import io.github.cloudscheduler.Node;
 import io.github.cloudscheduler.codec.EntityCodecProvider;
+import io.github.cloudscheduler.codec.EntityDecoder;
 import io.github.cloudscheduler.model.JobDefinition;
 import io.github.cloudscheduler.model.JobDefinitionState;
 import io.github.cloudscheduler.model.JobDefinitionStatus;
@@ -46,13 +49,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.Transaction;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,16 +71,16 @@ import org.slf4j.LoggerFactory;
  *
  * @author Wei Gao
  */
-public class JobServiceImpl extends CompletableFuture<Void> implements JobService {
+public class JobServiceImpl implements JobService {
   private static final Logger logger = LoggerFactory.getLogger(JobServiceImpl.class);
 
-  private static final String ZK_ROOT_KEY = "cloud.scheduler.zookeeper.chroot";
-  private static final String ZK_ROOT_DEFAULT = "/scheduler";
-  private static final String JOB_DEF_ROOT = "/jobDefs";
-  private static final String JOB_INSTANCE_ROOT = "/jobInstances";
-  private static final String WORKER_NODE_ROOT = "/workers";
+  static final String ZK_ROOT_KEY = "cloud.scheduler.zookeeper.chroot";
+  static final String ZK_ROOT_DEFAULT = "/scheduler";
+  static final String JOB_DEF_ROOT = "/jobDefs";
+  static final String JOB_INSTANCE_ROOT = "/jobInstances";
+  static final String WORKER_NODE_ROOT = "/workers";
 
-  private static final String STATUS_PATH = "status";
+  static final String STATUS_PATH = "status";
 
   private final Supplier<ZooKeeper> zooKeeperSupplier;
   private final RetryStrategy retryStrategy;
@@ -81,6 +88,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   private final String jobInstanceRoot;
   private final String workerNodeRoot;
   private final EntityCodecProvider codecProvider;
+  private final CompletableFuture<Void> _self;
 
   /**
    * Constructor.
@@ -88,19 +96,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
    * @param zooKeeper zooKeeper
    */
   public JobServiceImpl(ZooKeeper zooKeeper) {
-    this(
-        () -> zooKeeper,
-        RetryStrategy.newBuilder()
-            .fibonacci(250L)
-            .random()
-            .maxDelay(3000L)
-            .maxRetry(20)
-            .retryOn(Collections.singletonList(KeeperException.class))
-            .stopAt(
-                Arrays.asList(
-                    KeeperException.NoAuthException.class,
-                    KeeperException.SessionExpiredException.class))
-            .build());
+    this(() -> zooKeeper);
   }
 
   /**
@@ -115,7 +111,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
             .fibonacci(250L)
             .random()
             .maxDelay(3000L)
-            .maxRetry(10)
+            .maxRetry(15)
             .retryOn(Collections.singletonList(KeeperException.class))
             .stopAt(
                 Arrays.asList(
@@ -124,7 +120,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
             .build());
   }
 
-  private JobServiceImpl(Supplier<ZooKeeper> zooKeeperSupplier, RetryStrategy retryStrategy) {
+  JobServiceImpl(Supplier<ZooKeeper> zooKeeperSupplier, RetryStrategy retryStrategy) {
     Objects.requireNonNull(zooKeeperSupplier, "ZooKeeper is mandatory");
     Objects.requireNonNull(retryStrategy, "RetryStrategy is mandatory");
     logger.trace("New JobServiceImpl instance with zk: {}", zooKeeperSupplier.get());
@@ -134,17 +130,21 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
     jobDefRoot = zkRoot + JOB_DEF_ROOT;
     jobInstanceRoot = zkRoot + JOB_INSTANCE_ROOT;
     workerNodeRoot = zkRoot + WORKER_NODE_ROOT;
-    this.codecProvider = EntityCodecProvider.getCodecProvider();
+    codecProvider = EntityCodecProvider.getCodecProvider();
+    _self = new CompletableFuture<>();
     CompletableFuture.allOf(
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobDefRoot),
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobInstanceRoot),
-            ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), workerNodeRoot))
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobDefRoot)),
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), jobInstanceRoot)),
+            retryStrategy.call(
+                () -> ZooKeeperUtils.createZnodes(zooKeeperSupplier.get(), workerNodeRoot)))
         .whenComplete(
             (v, cause) -> {
               if (cause != null) {
-                this.completeExceptionally(cause);
+                _self.completeExceptionally(cause);
               } else {
-                this.complete(null);
+                _self.complete(null);
               }
             });
   }
@@ -196,11 +196,8 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
         () ->
             ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), workerNodeRoot, listener)
                 .thenApply(
-                    children -> {
-                      List<UUID> nodes = new ArrayList<>(children.size());
-                      children.forEach(c -> nodes.add(UUID.fromString(c)));
-                      return nodes;
-                    }));
+                    children ->
+                        children.stream().map(UUID::fromString).collect(Collectors.toList())));
   }
 
   @Override
@@ -274,27 +271,26 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                               CompletableFuture<Void> removeInstanceFuture =
                                   getJobInstancesByJobDefAsync(jobDef)
                                       .thenCompose(
-                                          jobIns -> {
-                                            List<CompletableFuture<Void>> fs =
-                                                new ArrayList<>(jobIns.size());
-                                            jobIns.forEach(
-                                                jobIn ->
-                                                    fs.add(
-                                                        ZooKeeperUtils.exists(
-                                                                zooKeeperSupplier.get(),
-                                                                getJobInstancePath(jobIn.getId()))
-                                                            .thenAccept(
-                                                                v -> {
-                                                                  if (v != null) {
-                                                                    transaction.delete(
-                                                                        getJobInstancePath(
-                                                                            jobIn.getId()),
-                                                                        v);
-                                                                  }
-                                                                })));
-                                            return CompletableFuture.allOf(
-                                                fs.toArray(new CompletableFuture[0]));
-                                          });
+                                          jobIns ->
+                                              CompletableFuture.allOf(
+                                                  jobIns.stream()
+                                                      .map(
+                                                          jobIn ->
+                                                              ZooKeeperUtils.exists(
+                                                                      zooKeeperSupplier.get(),
+                                                                      getJobInstancePath(
+                                                                          jobIn.getId()))
+                                                                  .thenAccept(
+                                                                      v -> {
+                                                                        if (v != null) {
+                                                                          transaction.delete(
+                                                                              getJobInstancePath(
+                                                                                  jobIn.getId()),
+                                                                              v);
+                                                                        }
+                                                                      }))
+                                                      .collect(Collectors.toList())
+                                                      .toArray(new CompletableFuture[0])));
                               CompletableFuture<Void> removeStatusFuture =
                                   ZooKeeperUtils.exists(
                                           zooKeeperSupplier.get(),
@@ -308,7 +304,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                                           });
                               return removeInstanceFuture.thenCombine(
                                   removeStatusFuture,
-                                  (v1, v2) -> {
+                                  (__, ___) -> {
                                     transaction.delete(getJobDefPath(jobDef.getId()), version);
                                     return null;
                                   });
@@ -371,15 +367,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   @Override
   public CompletableFuture<List<UUID>> listAllJobInstanceIdsAsync() {
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobInstanceRoot)
-                .thenApply(
-                    list -> {
-                      List<UUID> result = new ArrayList<>(list.size());
-                      list.forEach(s -> result.add(UUID.fromString(s)));
-                      return result;
-                    }));
+    return listAllEntityIdsAsync(jobInstanceRoot);
   }
 
   @Override
@@ -400,47 +388,17 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   private CompletableFuture<List<JobInstance>> listJobInstancesAsync(
       Predicate<JobInstance> filter, Consumer<EventType> listener) {
-    logger.debug("Listing JobInstance{}", filter == null ? " with filter" : "");
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobInstanceRoot, listener)
-                .thenCompose(
-                    list -> {
-                      logger.trace("List JobInstance get total {} records", list.size());
-                      List<JobInstance> result = new ArrayList<>(list.size());
-                      List<CompletableFuture<Void>> fs = new ArrayList<>(list.size());
-                      list.forEach(
-                          s -> {
-                            UUID id = UUID.fromString(s);
-                            fs.add(
-                                ZooKeeperUtils.readEntity(
-                                        zooKeeperSupplier.get(),
-                                        getJobInstancePath(id),
-                                        codecProvider.getEntityDecoder(JobInstance.class))
-                                    .thenApply(n -> n == null ? null : n.getEntity())
-                                    .thenAccept(
-                                        j -> {
-                                          if (j != null && (filter == null || filter.test(j))) {
-                                            result.add(j);
-                                          }
-                                        }));
-                          });
-                      return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-                          .thenApply(v -> result);
-                    }));
+    return listEntitiesAsync(
+        filter,
+        listener,
+        codecProvider.getEntityDecoder(JobInstance.class),
+        jobInstanceRoot,
+        this::getJobInstancePath);
   }
 
   @Override
   public CompletableFuture<List<UUID>> listAllJobDefinitionIdsAsync() {
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobDefRoot)
-                .thenApply(
-                    list -> {
-                      List<UUID> result = new ArrayList<>(list.size());
-                      list.forEach(s -> result.add(UUID.fromString(s)));
-                      return result;
-                    }));
+    return listAllEntityIdsAsync(jobDefRoot);
   }
 
   @Override
@@ -476,36 +434,48 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   private CompletableFuture<List<JobDefinition>> listJobDefinitionsAsync(
       Predicate<JobDefinition> filter, Consumer<EventType> listener) {
-    logger.debug("Listing JobDefinition{}", filter == null ? " with filter" : "");
+    return listEntitiesAsync(
+        filter,
+        listener,
+        codecProvider.getEntityDecoder(JobDefinition.class),
+        jobDefRoot,
+        this::getJobDefPath);
+  }
+
+  private <T> CompletableFuture<List<T>> listEntitiesAsync(
+      Predicate<T> filter,
+      Consumer<EventType> listener,
+      EntityDecoder<T> decoder,
+      String rootPath,
+      Function<String, String> pathResolver) {
+    logger.debug("Listing entities{}", filter == null ? " with filter" : "");
     return retryOperation(
         () ->
-            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), jobDefRoot, listener)
+            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), rootPath, listener)
                 .thenCompose(
                     list -> {
-                      logger.trace("List JobDefinition get total {} records", list.size());
-                      List<JobDefinition> result = new ArrayList<>(list.size());
-                      List<CompletableFuture<Void>> fs = new ArrayList<>(list.size());
-                      list.forEach(
-                          s -> {
-                            UUID id = UUID.fromString(s);
-                            fs.add(
-                                ZooKeeperUtils.readEntity(
-                                        zooKeeperSupplier.get(),
-                                        getJobDefPath(id),
-                                        codecProvider.getEntityDecoder(JobDefinition.class))
-                                    .thenApply(n -> n == null ? null : n.getEntity())
-                                    .thenAccept(
-                                        j -> {
-                                          if (j != null && (filter == null || filter.test(j))) {
-                                            logger.trace(
-                                                "Adding JobDefinition with id: {} into return list.",
-                                                j.getId());
-                                            result.add(j);
-                                          }
-                                        }));
-                          });
-                      return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-                          .thenApply(v -> result);
+                      logger.trace("List entities get total {} records", list.size());
+                      return list.stream()
+                          .map(
+                              id ->
+                                  ZooKeeperUtils.readEntity(
+                                          zooKeeperSupplier.get(), pathResolver.apply(id), decoder)
+                                      .thenApply(n -> n == null ? null : n.getEntity()))
+                          .collect(
+                              collectingAndThen(
+                                  Collectors.toList(),
+                                  l ->
+                                      CompletableFuture.allOf(l.toArray(new CompletableFuture[0]))
+                                          .thenApply(
+                                              __ ->
+                                                  l.stream()
+                                                      .map(CompletableFuture::join)
+                                                      .filter(
+                                                          j ->
+                                                              (j != null
+                                                                  && (filter == null
+                                                                      || filter.test(j))))
+                                                      .collect(Collectors.toList()))));
                     }));
   }
 
@@ -578,7 +548,10 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                                           jsh.getVersion());
                                       return CompletableFuture.completedFuture(jobInstance);
                                     } catch (IOException e) {
-                                      throw new RuntimeException(e);
+                                      CompletableFuture<JobInstance> future =
+                                          new CompletableFuture<>();
+                                      future.completeExceptionally(e);
+                                      return future;
                                     }
                                   });
                             });
@@ -723,7 +696,7 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                                             if (jsh == null) {
                                               return CompletableFutureUtils
                                                   .exceptionalCompletableFuture(
-                                                      new IllegalArgumentException(
+                                                      new IllegalStateException(
                                                           "Cannot find JobDefinition "
                                                               + "status by id: "
                                                               + jobInstanceId));
@@ -788,101 +761,70 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   @Override
   public CompletableFuture<JobDefinition> pauseJobAsync(UUID id, boolean mayInterrupt) {
     Objects.requireNonNull(id, "JobDefinition ID is mandatory");
-    logger.debug("Cancelling JobDefinition with id: {}", id);
-    return retryOperation(
-        () ->
-            ZooKeeperUtils.readEntity(
-                    zooKeeperSupplier.get(),
-                    getJobDefPath(id),
-                    codecProvider.getEntityDecoder(JobDefinition.class))
-                .thenCompose(
-                    jdh -> {
-                      if (jdh != null) {
-                        JobDefinition jobDef = jdh.getEntity();
-                        return ZooKeeperUtils.readEntity(
-                                zooKeeperSupplier.get(),
-                                getJobDefStatusPath(id),
-                                codecProvider.getEntityDecoder(JobDefinitionStatus.class))
-                            .thenCompose(
-                                jsh -> {
-                                  if (jsh != null) {
-                                    JobDefinitionStatus jobDefinitionStatus = jsh.getEntity();
-                                    if (jobDefinitionStatus.getState().isActive()) {
-                                      jobDefinitionStatus.setState(JobDefinitionState.PAUSED);
-                                      return ZooKeeperUtils.updateEntity(
-                                              zooKeeperSupplier.get(),
-                                              getJobDefStatusPath(jobDefinitionStatus.getId()),
-                                              jobDefinitionStatus,
-                                              codecProvider.getEntityEncoder(
-                                                  JobDefinitionStatus.class),
-                                              jsh.getVersion())
-                                          .thenApply(s -> jobDef);
-                                    } else {
-                                      return CompletableFutureUtils.exceptionalCompletableFuture(
-                                          new JobException(
-                                              "JobDefinition already completed or paused"));
-                                    }
-                                  } else {
-                                    return CompletableFutureUtils.exceptionalCompletableFuture(
-                                        new IllegalArgumentException(
-                                            "Cannot find JobDefinition status by id: " + id));
-                                  }
-                                });
-                      } else {
-                        return CompletableFutureUtils.exceptionalCompletableFuture(
-                            new IllegalArgumentException("Cannot find JobDefinition by id: " + id));
-                      }
-                    }));
+    return updateJobDefinitionStatus(
+        id,
+        JobDefinitionState.PAUSED,
+        JobDefinitionState::isActive,
+        "JobDefinition already completed or paused");
   }
 
   @Override
   public CompletableFuture<JobDefinition> resumeJobAsync(UUID id) {
     Objects.requireNonNull(id, "JobDefinition ID is mandatory");
-    logger.debug("Cancelling JobDefinition with id: {}", id);
+    return updateJobDefinitionStatus(
+        id,
+        JobDefinitionState.CREATED,
+        JobDefinitionState.PAUSED::equals,
+        "JobDefinition not paused");
+  }
+
+  private CompletableFuture<JobDefinition> updateJobDefinitionStatus(
+      UUID jobDefId,
+      JobDefinitionState state,
+      Predicate<JobDefinitionState> condition,
+      String conditionErrorMessage) {
+    Objects.requireNonNull(jobDefId, "JobDefinition ID is mandatory");
+    logger.debug("Update JobDefinition state to {} with id: {}", state, jobDefId);
     return retryOperation(
         () ->
             ZooKeeperUtils.readEntity(
                     zooKeeperSupplier.get(),
-                    getJobDefPath(id),
+                    getJobDefPath(jobDefId),
                     codecProvider.getEntityDecoder(JobDefinition.class))
                 .thenCompose(
                     jdh -> {
-                      if (jdh != null) {
-                        JobDefinition jobDef = jdh.getEntity();
-                        return ZooKeeperUtils.readEntity(
-                                zooKeeperSupplier.get(),
-                                getJobDefStatusPath(id),
-                                codecProvider.getEntityDecoder(JobDefinitionStatus.class))
-                            .thenCompose(
-                                jsh -> {
-                                  if (jsh != null) {
-                                    JobDefinitionStatus jobDefinitionStatus = jsh.getEntity();
-                                    if (jobDefinitionStatus
-                                        .getState()
-                                        .equals(JobDefinitionState.PAUSED)) {
-                                      jobDefinitionStatus.setState(JobDefinitionState.CREATED);
-                                      return ZooKeeperUtils.updateEntity(
-                                              zooKeeperSupplier.get(),
-                                              getJobDefStatusPath(jobDefinitionStatus.getId()),
-                                              jobDefinitionStatus,
-                                              codecProvider.getEntityEncoder(
-                                                  JobDefinitionStatus.class),
-                                              jsh.getVersion())
-                                          .thenApply(s -> jobDef);
-                                    } else {
-                                      return CompletableFutureUtils.exceptionalCompletableFuture(
-                                          new JobException("JobDefinition or paused"));
-                                    }
-                                  } else {
-                                    return CompletableFutureUtils.exceptionalCompletableFuture(
-                                        new IllegalArgumentException(
-                                            "Cannot find JobDefinition status by id: " + id));
-                                  }
-                                });
-                      } else {
+                      if (jdh == null) {
                         return CompletableFutureUtils.exceptionalCompletableFuture(
-                            new IllegalArgumentException("Cannot find JobDefinition by id: " + id));
+                            new IllegalArgumentException(
+                                "Cannot find JobDefinition by id: " + jobDefId));
                       }
+                      JobDefinition jobDef = jdh.getEntity();
+                      return ZooKeeperUtils.readEntity(
+                              zooKeeperSupplier.get(),
+                              getJobDefStatusPath(jobDefId),
+                              codecProvider.getEntityDecoder(JobDefinitionStatus.class))
+                          .thenCompose(
+                              jsh -> {
+                                if (jsh == null) {
+                                  return CompletableFutureUtils.exceptionalCompletableFuture(
+                                      new IllegalArgumentException(
+                                          "Cannot find JobDefinition status by id: " + jobDefId));
+                                }
+                                JobDefinitionStatus jobDefinitionStatus = jsh.getEntity();
+                                if (condition.test(jobDefinitionStatus.getState())) {
+                                  jobDefinitionStatus.setState(state);
+                                  return ZooKeeperUtils.updateEntity(
+                                          zooKeeperSupplier.get(),
+                                          getJobDefStatusPath(jobDefinitionStatus.getId()),
+                                          jobDefinitionStatus,
+                                          codecProvider.getEntityEncoder(JobDefinitionStatus.class),
+                                          jsh.getVersion())
+                                      .thenApply(s -> jobDef);
+                                } else {
+                                  return CompletableFutureUtils.exceptionalCompletableFuture(
+                                      new JobException(conditionErrorMessage));
+                                }
+                              });
                     }));
   }
 
@@ -903,116 +845,85 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
                             new IllegalArgumentException(
                                 "Cannot find JobDefinition status by id: " + jobDef.getId()));
                       }
-                      List<UUID> completeJobInstance = new ArrayList<>();
-                      jsh.getEntity()
-                          .getJobInstanceState()
-                          .forEach(
-                              (id, state) -> {
-                                logger.trace("Processing JobInstance: {}", id);
-                                if (state.isComplete(jobDef.isGlobal())) {
-                                  logger.trace("JobInstance: {} complete", id);
-                                  completeJobInstance.add(id);
-                                }
-                              });
+                      JobDefinitionStatus jobDefStatus = jsh.getEntity();
+                      List<UUID> completeJobInstance =
+                          jsh.getEntity().getJobInstanceState().entrySet().stream()
+                              .map(
+                                  entry ->
+                                      Optional.ofNullable(
+                                          entry.getValue().isComplete(jobDef.isGlobal())
+                                              ? entry.getKey()
+                                              : null))
+                              .filter(Optional::isPresent)
+                              .map(Optional::get)
+                              .collect(Collectors.toList());
                       if (!completeJobInstance.isEmpty()) {
-                        List<CompletableFuture<Void>> fs =
-                            new ArrayList<>(completeJobInstance.size());
-                        List<JobInstance> instances = new ArrayList<>(completeJobInstance.size());
-                        completeJobInstance.forEach(
-                            id -> fs.add(removeJobInstance(id).thenAccept(instances::add)));
-                        return CompletableFuture.allOf(fs.toArray(new CompletableFuture[0]))
-                            .thenApply(v -> instances);
+                        return ZooKeeperUtils.transactionalOperation(
+                            zooKeeperSupplier.get(),
+                            transaction -> {
+                              jobDefStatus
+                                  .getJobInstanceState()
+                                  .keySet()
+                                  .removeAll(completeJobInstance);
+                              try {
+                                transaction.setData(
+                                    getJobDefStatusPath(jobDefStatus.getId()),
+                                    codecProvider
+                                        .getEntityEncoder(JobDefinitionStatus.class)
+                                        .encode(jobDefStatus),
+                                    jsh.getVersion());
+                                List<JobInstance> instances =
+                                    new ArrayList<>(completeJobInstance.size());
+                                return CompletableFuture.allOf(
+                                        completeJobInstance.stream()
+                                            .map(
+                                                id ->
+                                                    removeJobInstance(id, transaction)
+                                                        .thenAccept(
+                                                            ji -> {
+                                                              if (ji != null) {
+                                                                instances.add(ji);
+                                                              }
+                                                            }))
+                                            .toArray(CompletableFuture[]::new))
+                                    .thenApply(__ -> instances);
+                              } catch (IOException exp) {
+                                CompletableFuture<List<JobInstance>> future =
+                                    new CompletableFuture<>();
+                                future.completeExceptionally(exp);
+                                return future;
+                              }
+                            });
                       } else {
                         return CompletableFuture.completedFuture(Collections.emptyList());
                       }
                     }));
   }
 
-  private CompletableFuture<JobInstance> removeJobInstance(UUID id) {
-    CompletableFuture<JobInstance> future = new CompletableFuture<>();
-    removeJobInstance(id, future);
-    return future;
-  }
-
-  private void removeJobInstance(UUID id, CompletableFuture<JobInstance> future) {
-    logger.trace("Remove JobInstance: {}", id);
-    ZooKeeperUtils.getChildren(
-            zooKeeperSupplier.get(),
-            getJobInstancePath(id),
-            eventType -> {
-              if (eventType == EventType.CHILD_CHANGED) {
-                logger.trace("Children changed, reprocess remove JobInstance");
-                removeJobInstance(id, future);
-              }
-            })
-        .thenAccept(
+  private CompletableFuture<JobInstance> removeJobInstance(UUID id, Transaction transaction) {
+    return ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), getJobInstancePath(id))
+        .thenCompose(
             children -> {
               if (children.isEmpty()) {
                 logger.trace("JobInstance {} has no children, remove it", id);
-                ZooKeeperUtils.readEntity(
+                return ZooKeeperUtils.readEntity(
                         zooKeeperSupplier.get(),
                         getJobInstancePath(id),
                         codecProvider.getEntityDecoder(JobInstance.class))
-                    .thenCompose(
+                    .thenApply(
                         jih -> {
-                          if (jih != null) {
-                            JobInstance instance = jih.getEntity();
-                            return ZooKeeperUtils.readEntity(
-                                    zooKeeperSupplier.get(),
-                                    getJobDefStatusPath(instance.getJobDefId()),
-                                    codecProvider.getEntityDecoder(JobDefinitionStatus.class))
-                                .thenCompose(
-                                    jsh -> {
-                                      if (jsh != null) {
-                                        JobDefinitionStatus jobDefinitionStatus = jsh.getEntity();
-                                        logger.trace(
-                                            "Remove JobInstance {} for "
-                                                + "JobDefinition jobDefinitionStatus {}",
-                                            id,
-                                            jobDefinitionStatus.getId());
-                                        jobDefinitionStatus.getJobInstanceState().remove(id);
-                                        return ZooKeeperUtils.transactionalOperation(
-                                            zooKeeperSupplier.get(),
-                                            transaction -> {
-                                              try {
-                                                transaction.setData(
-                                                    getJobDefStatusPath(
-                                                        jobDefinitionStatus.getId()),
-                                                    codecProvider
-                                                        .getEntityEncoder(JobDefinitionStatus.class)
-                                                        .encode(jobDefinitionStatus),
-                                                    jsh.getVersion());
-                                                transaction.delete(
-                                                    getJobInstancePath(id), jih.getVersion());
-                                                return CompletableFuture.completedFuture(instance);
-                                              } catch (IOException e) {
-                                                return CompletableFutureUtils
-                                                    .exceptionalCompletableFuture(e);
-                                              }
-                                            });
-                                      } else {
-                                        return CompletableFuture.completedFuture(instance);
-                                      }
-                                    });
-                          } else {
-                            return CompletableFuture.completedFuture(null);
+                          if (jih == null) {
+                            return null;
                           }
-                        })
-                    .thenAccept(future::complete)
-                    .exceptionally(
-                        cause -> {
-                          future.completeExceptionally(cause);
-                          return null;
+                          transaction.delete(getJobInstancePath(id), jih.getVersion());
+                          return jih.getEntity();
                         });
               } else {
-                logger.trace("JobInstance {} has children, wait for children changed event.", id);
+                CompletableFuture<JobInstance> future = new CompletableFuture<>();
+                future.completeExceptionally(
+                    new IllegalStateException("JobInstance " + id + " has children."));
+                return future;
               }
-            })
-        .exceptionally(
-            cause -> {
-              logger.debug("Error happened when process remove JobInstance: {}", id);
-              future.completeExceptionally(cause);
-              return null;
             });
   }
 
@@ -1046,7 +957,11 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
   }
 
   private String getJobDefPath(UUID id) {
-    return jobDefRoot + "/" + id.toString();
+    return getJobDefPath(id.toString());
+  }
+
+  private String getJobDefPath(String id) {
+    return jobDefRoot + "/" + id;
   }
 
   private String getJobDefStatusPath(UUID id) {
@@ -1055,7 +970,11 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
 
   @Override
   public String getJobInstancePath(UUID id) {
-    return jobInstanceRoot + "/" + id.toString();
+    return getJobInstancePath(id.toString());
+  }
+
+  private String getJobInstancePath(String id) {
+    return jobInstanceRoot + "/" + id;
   }
 
   private String getWorkerNodePath(UUID id) {
@@ -1072,6 +991,18 @@ public class JobServiceImpl extends CompletableFuture<Void> implements JobServic
    * @return CompletableFuture
    */
   private <T> CompletableFuture<T> retryOperation(Supplier<CompletableFuture<T>> supplier) {
-    return thenCompose(v -> retryStrategy.call(supplier));
+    return _self.thenCompose(v -> retryStrategy.call(supplier));
+  }
+
+  private CompletableFuture<List<UUID>> listAllEntityIdsAsync(String rootPath) {
+    return retryOperation(
+        () ->
+            ZooKeeperUtils.getChildren(zooKeeperSupplier.get(), rootPath)
+                .thenApply(
+                    list -> {
+                      List<UUID> result = new ArrayList<>(list.size());
+                      list.forEach(s -> result.add(UUID.fromString(s)));
+                      return result;
+                    }));
   }
 }
