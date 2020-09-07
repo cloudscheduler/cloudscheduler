@@ -84,7 +84,7 @@
             "project": true
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.1",
+            "locked": "3.17.2",
             "requested": "3.+"
         },
         "org.jmockit:jmockit": {
@@ -121,7 +121,7 @@
             "project": true
         },
         "org.assertj:assertj-core": {
-            "locked": "3.16.1",
+            "locked": "3.17.2",
             "requested": "3.+"
         },
         "org.jmockit:jmockit": {
