@@ -148,7 +148,6 @@ public class SchedulerMasterTest {
     assertThat(countDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
   }
 
-
   @Test
   public void testInitMasterAndShutDown() throws InterruptedException {
     CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -197,18 +196,20 @@ public class SchedulerMasterTest {
         return CompletableFuture.completedFuture(zooKeeper);
       }
     };
-    new Expectations() {{
-      jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-      jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-      jobService.listAllJobInstanceIdsAsync();
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-      lock.lock();
-      result = CompletableFuture.completedFuture(null);
-      lock.unlock();
-      result = CompletableFuture.completedFuture(null);
-    }};
+    new Expectations() {
+      {
+        jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        jobService.listAllJobInstanceIdsAsync();
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        lock.lock();
+        result = CompletableFuture.completedFuture(null);
+        lock.unlock();
+        result = CompletableFuture.completedFuture(null);
+      }
+    };
     assertThatCode(
             () ->
                 new SchedulerMaster(
@@ -231,17 +232,19 @@ public class SchedulerMasterTest {
         countDownLatch.countDown();
       }
     };
-    new Expectations() {{
-      lock.lock();
-      result = CompletableFuture.completedFuture(null);
-      lock.unlock();
-      result = CompletableFuture.completedFuture(null);
+    new Expectations() {
+      {
+        lock.lock();
+        result = CompletableFuture.completedFuture(null);
+        lock.unlock();
+        result = CompletableFuture.completedFuture(null);
 
-      jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
-      result = exceptionalCompletableFuture(new Exception());
-      jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-    }};
+        jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
+        result = exceptionalCompletableFuture(new Exception());
+        jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+      }
+    };
     assertThat(cut.startAsync()).isDone().isCompleted();
     assertThat(countDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
     assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofSeconds(2));
@@ -256,19 +259,21 @@ public class SchedulerMasterTest {
         countDownLatch.countDown();
       }
     };
-    new Expectations() {{
-      lock.lock();
-      result = CompletableFuture.completedFuture(null);
-      lock.unlock();
-      result = CompletableFuture.completedFuture(null);
+    new Expectations() {
+      {
+        lock.lock();
+        result = CompletableFuture.completedFuture(null);
+        lock.unlock();
+        result = CompletableFuture.completedFuture(null);
 
-      jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-      jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
-      result = exceptionalCompletableFuture(new Exception());
-      jobService.listAllJobInstanceIdsAsync();
-      result = CompletableFuture.completedFuture(Collections.emptyList());
-    }};
+        jobService.getCurrentWorkersAsync((Consumer<EventType>) any);
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+        jobService.listAllJobDefinitionsAsync((Consumer<EventType>) any);
+        result = exceptionalCompletableFuture(new Exception());
+        jobService.listAllJobInstanceIdsAsync();
+        result = CompletableFuture.completedFuture(Collections.emptyList());
+      }
+    };
     assertThat(cut.startAsync()).isDone().isCompleted();
     assertThat(countDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
     assertThat(cut.shutdownAsync()).succeedsWithin(Duration.ofSeconds(2));

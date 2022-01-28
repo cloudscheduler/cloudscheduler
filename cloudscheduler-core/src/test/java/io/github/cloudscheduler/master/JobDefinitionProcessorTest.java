@@ -173,7 +173,8 @@ class JobDefinitionProcessorTest {
   void testScheduleJobInstanceCustomize(
       @Mocked JobDefinitionStatus status,
       @Mocked JobInstance jobIns,
-      @Mocked JobScheduleCalculator calculator) throws Throwable {
+      @Mocked JobScheduleCalculator calculator)
+      throws Throwable {
     UUID jobDefId = UUID.randomUUID();
     UUID jobInsId = UUID.randomUUID();
     new Expectations() {

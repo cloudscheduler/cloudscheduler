@@ -11,34 +11,27 @@
     },
     "testCompileClasspath": {
         "org.assertj:assertj-core": {
-            "locked": "3.17.2",
-            "requested": "3.+"
+            "locked": "3.22.0"
         },
         "org.jmockit:jmockit": {
-            "locked": "1.49",
-            "requested": "1.+"
+            "locked": "1.49"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         }
     },
     "testRuntimeClasspath": {
         "org.assertj:assertj-core": {
-            "locked": "3.17.2",
-            "requested": "3.+"
+            "locked": "3.22.0"
         },
         "org.jmockit:jmockit": {
-            "locked": "1.49",
-            "requested": "1.+"
+            "locked": "1.49"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         }
     }
 }

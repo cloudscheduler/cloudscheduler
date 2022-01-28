@@ -1,24 +1,19 @@
 {
     "compileClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
             "project": true
@@ -36,24 +31,19 @@
     },
     "runtimeClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
             "project": true
@@ -61,80 +51,63 @@
     },
     "testCompileClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
             "project": true
         },
         "org.assertj:assertj-core": {
-            "locked": "3.17.2",
-            "requested": "3.+"
+            "locked": "3.22.0"
         },
         "org.jmockit:jmockit": {
-            "locked": "1.49",
-            "requested": "1.+"
+            "locked": "1.49"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         }
     },
     "testRuntimeClasspath": {
         "com.fasterxml.jackson.core:jackson-annotations": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.core:jackson-databind": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jdk8": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.datatype:jackson-datatype-jsr310": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "com.fasterxml.jackson.module:jackson-module-parameter-names": {
-            "locked": "2.11.2",
-            "requested": "2.+"
+            "locked": "2.13.1"
         },
         "io.github.cloudscheduler:cloudscheduler-api": {
             "project": true
         },
         "org.assertj:assertj-core": {
-            "locked": "3.17.2",
-            "requested": "3.+"
+            "locked": "3.22.0"
         },
         "org.jmockit:jmockit": {
-            "locked": "1.49",
-            "requested": "1.+"
+            "locked": "1.49"
         },
         "org.junit.jupiter:junit-jupiter-api": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         },
         "org.junit.jupiter:junit-jupiter-engine": {
-            "locked": "5.7.0-RC1",
-            "requested": "5.+"
+            "locked": "5.8.2"
         }
     }
 }
