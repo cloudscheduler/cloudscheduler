@@ -59,7 +59,8 @@ import org.slf4j.LoggerFactory;
 @Tag("integration")
 public class SchedulerMasterIntegrationTest extends AbstractTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(SchedulerMasterIntegrationTest.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(SchedulerMasterIntegrationTest.class);
   private final JobFactory jobFactory = new SimpleJobFactory();
 
   @Test

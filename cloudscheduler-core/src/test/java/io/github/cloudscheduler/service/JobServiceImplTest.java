@@ -76,8 +76,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class JobServiceImplTest {
-  @Tested
-  private JobServiceImpl cut;
+  @Tested private JobServiceImpl cut;
 
   @Injectable private ZooKeeper zooKeeper;
   @Mocked private EntityCodecProvider codecProvider;

@@ -6,16 +6,15 @@ buildscript {
         }
     }
     dependencies {
-        classpath 'com.netflix.nebula:gradle-lint-plugin:16.9.0'
-        classpath 'gradle.plugin.com.github.sherter.google-java-format:google-java-format-gradle-plugin:0.9'
-        classpath 'com.netflix.nebula:gradle-dependency-lock-plugin:9.2.0'
-        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.22.0"
-        classpath "de.marcphilipp.gradle:nexus-publish-plugin:0.4.0"
+        classpath 'com.netflix.nebula:gradle-lint-plugin:17.6.1'
+        classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.2.0'
+        classpath 'com.netflix.nebula:gradle-dependency-lock-plugin:12.3.1'
+        classpath "io.github.gradle-nexus:publish-plugin:1.1.0"
     }
 }
 
 ext {
-    zookeeperVersion = '3.4.+'
+    zookeeperVersion = '3.6.+'
     slf4jVersion = '1.7.+'
     jacksonVersion = '2.+'
     protostuffVersion = '1.+'
@@ -23,21 +22,24 @@ ext {
 
     junitVersion = '5.+'
     curatorVersion = '5.+'
-    log4jVersion = '[2.13.2,)'
+    log4jVersion = '[2.17.1,)'
     assertjVersion = '3.+'
     jmockitVersion = '1.+'
 
     jacocoVersion = '0.8.+'
 }
 
-apply plugin: 'io.codearte.nexus-staging'
+apply plugin: 'io.github.gradle-nexus.publish-plugin'
 
-nexusStaging {
-    packageGroup = "io.github.cloudscheduler"
-    username = System.getenv('SONATYPE_USERNAME')
-    password = System.getenv('SONATYPE_PASSWORD')
+nexusPublishing {
+    packageGroup = "io.github.cloudscheduler"  //defaults to 'project.group'
+    repositories {
+        sonatype {   //custom repository name - 'sonatype' is pre-configured
+            username = System.getenv('SONATYPE_USERNAME')
+            password = System.getenv('SONATYPE_PASSWORD')
+        }
+    }
 }
-
 allprojects {
     group = 'io.github.cloudscheduler'
     version = '1.0.4-SNAPSHOT'
@@ -47,14 +49,14 @@ allprojects {
 }
 
 subprojects {
-    apply plugin: 'java'
+    apply plugin: 'java-library'
     apply plugin: 'jacoco'
     apply plugin: 'signing'
-    apply plugin: 'com.github.sherter.google-java-format'
-    apply plugin: 'de.marcphilipp.nexus-publish'
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.diffplug.spotless'
 
-    sourceCompatibility = '1.8'
-    targetCompatibility = '1.8'
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 
     jacoco {
         toolVersion = '0.8.5'
@@ -72,15 +74,13 @@ subprojects {
         testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitVersion
     }
 
-    googleJavaFormat {
-        source = 'src/main'
-        source += 'src/test'
-        include '**/*.java'
-    }
-
-    verifyGoogleJavaFormat {
-        source = 'src/main'
-        include '**/*.java'
+    spotless {
+        java {
+            target fileTree(projectDir) {
+                include 'src/**/*.java'
+            }
+            googleJavaFormat('1.11.0')
+        }
     }
 
     javadoc {
@@ -155,17 +155,12 @@ subprojects {
         sign publishing.publications.mavenJava
     }
 
-    nexusPublishing {
-        repositories {
-            sonatype()
-        }
-    }
-
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
 
     test {
+        maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
         doFirst {
             def jMockit = project.configurations.testCompileClasspath.find {
                 it.name.startsWith("jmockit-")

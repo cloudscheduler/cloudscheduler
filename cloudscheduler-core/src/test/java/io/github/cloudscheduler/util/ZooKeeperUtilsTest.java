@@ -961,8 +961,7 @@ public class ZooKeeperUtilsTest {
   }
 
   @Test
-  public void testTransactionZooKeeperError(
-      @Mocked Transaction transaction) {
+  public void testTransactionZooKeeperError(@Mocked Transaction transaction) {
     Object entity = new Object();
     new MockUp<Transaction>() {
       @Mock
@@ -970,10 +969,11 @@ public class ZooKeeperUtilsTest {
         cb.processResult(Code.NOAUTH.intValue(), null, ctx, Collections.emptyList());
       }
     };
-    Function<Transaction, CompletableFuture<Object>> function = (tran) -> {
-      tran.check("", 1);
-      return CompletableFuture.completedFuture(entity);
-    };
+    Function<Transaction, CompletableFuture<Object>> function =
+        (tran) -> {
+          tran.check("", 1);
+          return CompletableFuture.completedFuture(entity);
+        };
     new Expectations() {
       {
         zooKeeper.transaction();
